@@ -38,20 +38,7 @@ market_insights: Dict[str, Any] = {
 }
 
 
-@sio.event
-async def connect(sid, environ, auth):
-    """Handle client connection"""
-    logger.info(f"Client connected: {sid}")
-    
-    # Store connection without user info until authenticated
-    connected_users[sid] = {
-        "authenticated": False,
-        "user_id": None,
-        "role": None,
-        "rooms": []
-    }
-    
-    await sio.emit('connection_success', {"status": "connected", "sid": sid}, to=sid)
+
 
 
 @sio.event
@@ -339,11 +326,29 @@ async def background_updates():
 
 
 # Start background task
-@sio.on('connect')
-async def start_background_tasks(sid, environ):
-    if not hasattr(start_background_tasks, 'started'):
-        start_background_tasks.started = True
+async def initialize_background_tasks():
+    """Initialize background tasks"""
+    if not hasattr(initialize_background_tasks, 'started'):
+        initialize_background_tasks.started = True
         sio.start_background_task(background_updates)
+
+@sio.event
+async def connect(sid, environ, auth):
+    """Handle client connection"""
+    logger.info(f"Client connected: {sid}")
+    
+    # Initialize background tasks on first connection
+    await initialize_background_tasks()
+    
+    # Store connection without user info until authenticated
+    connected_users[sid] = {
+        "authenticated": False,
+        "user_id": None,
+        "role": None,
+        "rooms": []
+    }
+    
+    await sio.emit('connection_success', {"status": "connected", "sid": sid}, to=sid)
 
 
 @sio.event
@@ -620,5 +625,5 @@ async def send_periodic_updates():
         except Exception as e:
             print(f"Error in periodic updates: {e}")
 
-# Start periodic updates task
-asyncio.create_task(send_periodic_updates())
+# Start periodic updates task when server starts
+# This will be handled by the background task starter
