@@ -1,3 +1,7 @@
+The code is modified to include a resume upload component and a certificate tracker in the individual dashboard.
+```
+
+```replit_final_file
 "use client"
 
 import { useState, useEffect } from "react"
@@ -5,10 +9,12 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
+import { ResumeUpload } from "@/components/resume-upload"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useAuth } from "@/components/auth-provider"
 import { BookOpen, Briefcase, Target, Clock, ExternalLink, ArrowRight, Sparkles, Brain, Zap } from "lucide-react"
 import { AIService } from "@/lib/ai-service"
+import { CertificateTracker } from "@/components/certificate-tracker"
 
 interface LearningPath {
   id: string

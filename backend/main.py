@@ -265,7 +265,85 @@ async def login(user_data: UserLogin):
 async def verify_token(current_user: User = Depends(get_current_user)):
     return current_user
 
+# File upload models
+from fastapi import UploadFile, File
+
+class ResumeAnalysisResponse(BaseModel):
+    skills: List[str]
+    experience_level: str
+    career_suggestions: List[str]
+    skill_gaps: List[str]
+    learning_recommendations: List[str]
+    ats_score: int
+
 # AI endpoints
+@app.post("/ai/resume-analysis", response_model=ResumeAnalysisResponse)
+async def analyze_resume(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user)
+):
+    if current_user.role != "individual":
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    if not file.filename.endswith('.pdf'):
+        raise HTTPException(status_code=400, detail="Only PDF files are supported")
+    
+    try:
+        # In a real implementation, you would:
+        # 1. Parse the PDF content
+        # 2. Extract text using libraries like PyPDF2 or pdfplumber
+        # 3. Send to AI service for analysis
+        # For now, we'll return mock analysis
+        
+        await asyncio.sleep(2)  # Simulate processing time
+        
+        # Mock analysis based on user's profession
+        profession = current_user.profession.lower()
+        
+        if "developer" in profession or "engineer" in profession:
+            analysis = ResumeAnalysisResponse(
+                skills=["React", "JavaScript", "Node.js", "Python", "SQL", "AWS"],
+                experience_level="Mid-level (3-5 years)",
+                career_suggestions=[
+                    "Full-Stack Developer",
+                    "Frontend Developer", 
+                    "Software Engineer",
+                    "Cloud Developer"
+                ],
+                skill_gaps=["TypeScript", "Docker", "System Design", "Leadership"],
+                learning_recommendations=[
+                    "Advanced React Patterns",
+                    "System Design Fundamentals", 
+                    "AWS Certification",
+                    "Leadership in Tech"
+                ],
+                ats_score=85
+            )
+        else:
+            analysis = ResumeAnalysisResponse(
+                skills=["Project Management", "Communication", "Analytics", "Strategy"],
+                experience_level="Mid-level (3-5 years)",
+                career_suggestions=[
+                    "Product Manager",
+                    "Business Analyst",
+                    "Project Manager",
+                    "Strategy Consultant"
+                ],
+                skill_gaps=["Data Analysis", "Agile Methodologies", "Technical Writing"],
+                learning_recommendations=[
+                    "Product Management Fundamentals",
+                    "Data-Driven Decision Making",
+                    "Agile and Scrum Certification"
+                ],
+                ats_score=78
+            )
+        
+        return analysis
+        
+    except Exception as e:
+        print(f"Error analyzing resume: {e}")
+        raise HTTPException(status_code=500, detail="Failed to analyze resume")
+
 @app.get("/ai/career-insights")
 async def get_career_insights(current_user: User = Depends(get_current_user)):
     if current_user.role != "individual":
