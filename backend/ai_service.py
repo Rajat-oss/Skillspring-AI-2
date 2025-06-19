@@ -749,3 +749,164 @@ class AIService:
         except Exception as e:
             print(f"Error matching candidates: {e}")
             return []
+import os
+from typing import List, Dict, Optional
+import asyncio
+
+class AIService:
+    def __init__(self):
+        self.mock_mode = True
+        self.openai_client = None
+    
+    def search_courses(self, query: str) -> List[Dict]:
+        """Mock course search"""
+        return [
+            {
+                "title": f"Complete {query} Course",
+                "provider": "SkillSpring Academy",
+                "rating": 4.8,
+                "duration": "12 weeks",
+                "level": "Intermediate",
+                "price": "$99"
+            },
+            {
+                "title": f"Advanced {query} Bootcamp",
+                "provider": "TechEd",
+                "rating": 4.9,
+                "duration": "16 weeks",
+                "level": "Advanced",
+                "price": "$199"
+            }
+        ]
+    
+    def generate_project_ideas(self, query: str) -> List[Dict]:
+        """Mock project ideas generation"""
+        return [
+            {
+                "title": f"Build a {query} Portfolio Project",
+                "description": f"Create a comprehensive project showcasing {query} skills",
+                "difficulty": "Medium",
+                "timeEstimate": "2-3 weeks",
+                "technologies": [query, "JavaScript", "React"]
+            },
+            {
+                "title": f"{query} API Integration",
+                "description": f"Integrate third-party APIs into a {query} application",
+                "difficulty": "Hard",
+                "timeEstimate": "3-4 weeks",
+                "technologies": [query, "REST APIs", "Database"]
+            }
+        ]
+    
+    def assess_skills(self, skills: str) -> Dict:
+        """Mock skill assessment"""
+        return {
+            "overall_score": 75,
+            "strengths": ["Problem solving", "Technical implementation"],
+            "areas_for_improvement": ["System design", "Testing"],
+            "recommendations": [
+                "Practice system design patterns",
+                "Learn test-driven development",
+                "Build more complex projects"
+            ]
+        }
+    
+    def analyze_job_market(self, role: str) -> Dict:
+        """Mock job market analysis"""
+        return {
+            "demand": "High",
+            "average_salary": "$85,000 - $120,000",
+            "trending_skills": ["React", "TypeScript", "Node.js", "AWS"],
+            "job_growth": "+15% year over year",
+            "top_locations": ["San Francisco", "New York", "Seattle", "Remote"]
+        }
+    
+    def optimize_resume(self, resume_content: str) -> List[str]:
+        """Mock resume optimization"""
+        return [
+            "Add quantifiable achievements with metrics",
+            "Include relevant keywords for ATS optimization",
+            "Highlight technical skills more prominently",
+            "Use action verbs to describe accomplishments",
+            "Tailor content to specific job requirements"
+        ]
+    
+    def prepare_interview(self, role_company: str) -> Dict:
+        """Mock interview preparation"""
+        return {
+            "common_questions": [
+                "Tell me about yourself",
+                "Why are you interested in this role?",
+                "Describe a challenging project you worked on"
+            ],
+            "technical_topics": ["Data structures", "Algorithms", "System design"],
+            "company_research": [
+                "Review company mission and values",
+                "Understand recent company news",
+                "Research the interviewer's background"
+            ],
+            "preparation_tips": [
+                "Practice coding problems",
+                "Prepare specific examples using STAR method",
+                "Research the company culture"
+            ]
+        }
+    
+    def match_talent(self, requirements: str) -> List[Dict]:
+        """Mock talent matching"""
+        return [
+            {
+                "name": "Sarah Chen",
+                "match_score": 95,
+                "skills": ["React", "Node.js", "Python", "AWS"],
+                "experience": "5 years",
+                "location": "San Francisco, CA"
+            },
+            {
+                "name": "Alex Rodriguez",
+                "match_score": 88,
+                "skills": ["JavaScript", "Vue.js", "Python", "Docker"],
+                "experience": "4 years",
+                "location": "Remote"
+            }
+        ]
+    
+    def generate_business_model(self, business_idea: str) -> Dict:
+        """Mock business model generation"""
+        return {
+            "value_proposition": "Solving customer pain points through innovative technology",
+            "target_customers": ["Tech-savvy professionals", "SMBs", "Enterprise clients"],
+            "revenue_streams": ["Subscription", "Freemium", "Enterprise licenses"],
+            "key_activities": ["Product development", "Customer acquisition", "Support"],
+            "cost_structure": ["Development", "Marketing", "Operations", "Support"]
+        }
+    
+    def analyze_market(self, industry: str) -> Dict:
+        """Mock market analysis"""
+        return {
+            "market_size": "$50B globally",
+            "growth_rate": "12% CAGR",
+            "key_trends": ["AI integration", "Remote work", "Sustainability"],
+            "competitors": ["Company A", "Company B", "Company C"],
+            "opportunities": ["Emerging markets", "New technologies", "Partnerships"]
+        }
+    
+    @staticmethod
+    async def generate_career_insights(email: str, profession: str) -> List[str]:
+        """Mock career insights"""
+        return [
+            f"Based on your {profession} background, consider exploring AI/ML integration",
+            "The job market for your field is growing by 15% annually",
+            "Consider developing cloud computing skills for better opportunities",
+            "Remote work opportunities in your field have increased by 40%"
+        ]
+    
+    @staticmethod
+    async def generate_startup_insights(email: str, profession: str) -> List[str]:
+        """Mock startup insights"""
+        return [
+            f"The {profession} industry shows strong investment trends",
+            "Consider focusing on sustainable and AI-powered solutions",
+            "Remote-first startups are attracting 30% more talent",
+            "B2B SaaS models show the highest success rates in your sector"
+        ]

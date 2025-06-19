@@ -520,3 +520,105 @@ async def background_updates():
             await asyncio.sleep(10)  # Sleep briefly before retrying
 
 
+import socketio
+from fastapi import FastAPI
+import asyncio
+from typing import Dict, Any
+
+# Create Socket.IO server
+sio = socketio.AsyncServer(
+    cors_allowed_origins=["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:3001", "http://127.0.0.1:3001"],
+    logger=True,
+    engineio_logger=True
+)
+
+# Create Socket.IO ASGI app
+socket_app = socketio.ASGIApp(sio, other_asgi_app=None)
+
+# Store connected clients
+connected_clients = {}
+
+@sio.event
+async def connect(sid, environ):
+    print(f"Client {sid} connected")
+    connected_clients[sid] = {
+        "connected_at": asyncio.get_event_loop().time(),
+        "user_id": None
+    }
+
+@sio.event
+async def disconnect(sid):
+    print(f"Client {sid} disconnected")
+    if sid in connected_clients:
+        del connected_clients[sid]
+
+@sio.event
+async def join_user_room(sid, data):
+    """Join a user-specific room for notifications"""
+    user_id = data.get("user_id")
+    if user_id:
+        await sio.enter_room(sid, f"user_{user_id}")
+        connected_clients[sid]["user_id"] = user_id
+        print(f"Client {sid} joined room user_{user_id}")
+
+@sio.event
+async def leave_user_room(sid, data):
+    """Leave a user-specific room"""
+    user_id = data.get("user_id")
+    if user_id:
+        await sio.leave_room(sid, f"user_{user_id}")
+        print(f"Client {sid} left room user_{user_id}")
+
+# Utility functions for sending notifications
+async def send_notification(user_id: str, notification_type: str, data: Dict[Any, Any]):
+    """Send notification to a specific user"""
+    try:
+        await sio.emit("notification", {
+            "type": notification_type,
+            "data": data
+        }, room=f"user_{user_id}")
+        print(f"Sent notification to user {user_id}: {notification_type}")
+    except Exception as e:
+        print(f"Error sending notification: {e}")
+
+async def broadcast_job_update(job_data: Dict[Any, Any]):
+    """Broadcast job updates to all startup users"""
+    try:
+        await sio.emit("job_update", job_data, room="startups")
+        print(f"Broadcasted job update: {job_data.get('title', 'Unknown')}")
+    except Exception as e:
+        print(f"Error broadcasting job update: {e}")
+
+async def broadcast_candidate_update(candidate_data: Dict[Any, Any]):
+    """Broadcast candidate updates to all startup users"""
+    try:
+        await sio.emit("candidate_update", candidate_data, room="startups")
+        print(f"Broadcasted candidate update: {candidate_data.get('name', 'Unknown')}")
+    except Exception as e:
+        print(f"Error broadcasting candidate update: {e}")
+
+async def update_market_insights(insights_data: Dict[Any, Any]):
+    """Send market insights updates"""
+    try:
+        await sio.emit("market_insights", insights_data, room="startups")
+        print(f"Sent market insights update")
+    except Exception as e:
+        print(f"Error sending market insights: {e}")
+
+# Background task to send periodic updates
+async def send_periodic_updates():
+    """Send periodic market updates and insights"""
+    while True:
+        try:
+            # Send market insights every 30 minutes
+            await asyncio.sleep(1800)  # 30 minutes
+            await update_market_insights({
+                "type": "market_update",
+                "message": "Market trends updated",
+                "timestamp": asyncio.get_event_loop().time()
+            })
+        except Exception as e:
+            print(f"Error in periodic updates: {e}")
+
+# Start periodic updates task
+asyncio.create_task(send_periodic_updates())
