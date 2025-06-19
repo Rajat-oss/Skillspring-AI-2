@@ -1,0 +1,5 @@
+id,name,title,skills,experience,location,match,status
+1,Sarah Chen,Full-Stack Developer,"React,Node.js,Python,AWS",3 years,"San Francisco, CA",95,available
+2,Alex Rodriguez,UI/UX Designer,"Figma,Adobe Creative Suite,Prototyping",4 years,Remote,88,interviewing
+3,Michael Kim,Data Scientist,"Python,Machine Learning,SQL,TensorFlow",5 years,"New York, NY",92,available
+4,Emily Johnson,DevOps Engineer,"AWS,Docker,Kubernetes,CI/CD",6 years,"Austin, TX",89,available
