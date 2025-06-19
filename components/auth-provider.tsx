@@ -3,6 +3,13 @@
 import type React from "react"
 
 import { createContext, useContext, useEffect, useState } from "react"
+import {
+  signup as firebaseSignup,
+  login as firebaseLogin,
+  logout as firebaseLogout,
+  onAuthStateChangedListener,
+  FirebaseUser,
+} from "@/lib/firebase"
 
 interface User {
   id: string
@@ -21,16 +28,13 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-function hashPassword(password: string): string {
-  // Simple hash function for demo purposes (not secure)
-  let hash = 0, i, chr
-  if (password.length === 0) return hash.toString()
-  for (i = 0; i < password.length; i++) {
-    chr = password.charCodeAt(i)
-    hash = ((hash << 5) - hash) + chr
-    hash |= 0
+function mapFirebaseUserToUser(firebaseUser: FirebaseUser | null, role: "individual" | "startup"): User | null {
+  if (!firebaseUser) return null
+  return {
+    id: firebaseUser.uid,
+    email: firebaseUser.email || "",
+    role,
   }
-  return hash.toString()
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -38,76 +42,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Check for existing session
-    const savedUser = localStorage.getItem("skillspring_user");
-    const savedPasswordHash = localStorage.getItem("skillspring_password_hash");
-    if (savedUser && savedPasswordHash) {
-      setUser(JSON.parse(savedUser));
-    }
-    setLoading(false);
+    // Listen to Firebase auth state changes
+    const unsubscribe = onAuthStateChangedListener((firebaseUser) => {
+      // For simplicity, default role to "individual" if not set
+      const currentRole = user?.role || "individual"
+      setUser(mapFirebaseUserToUser(firebaseUser, currentRole))
+      setLoading(false)
+    })
+    return () => unsubscribe()
   }, [])
 
   const login = async (email: string, password: string, role: "individual" | "startup") => {
-    const usersStr = localStorage.getItem("skillspring_users");
-    const users = usersStr ? JSON.parse(usersStr) : [];
-    const passwordHash = hashPassword(password);
-
-    const foundUser = users.find((u: any) => u.email === email && u.password_hash === passwordHash && u.role === role);
-    if (!foundUser) {
-      throw new Error('Invalid email or password');
+    setLoading(true)
+    try {
+      const userCredential = await firebaseLogin(email, password)
+      setUser(mapFirebaseUserToUser(userCredential.user, role))
+    } finally {
+      setLoading(false)
     }
-
-    setUser({
-      id: foundUser.id,
-      email: foundUser.email,
-      role: foundUser.role,
-    });
-    localStorage.setItem("skillspring_user", JSON.stringify({
-      id: foundUser.id,
-      email: foundUser.email,
-      role: foundUser.role,
-    }));
-    localStorage.setItem("skillspring_password_hash", passwordHash);
   }
 
   const signup = async (email: string, password: string, role: "individual" | "startup") => {
-    const usersStr = localStorage.getItem("skillspring_users");
-    const users = usersStr ? JSON.parse(usersStr) : [];
-
-    if (users.find((u: any) => u.email === email)) {
-      throw new Error('Email already registered');
+    setLoading(true)
+    try {
+      const userCredential = await firebaseSignup(email, password)
+      setUser(mapFirebaseUserToUser(userCredential.user, role))
+    } finally {
+      setLoading(false)
     }
-
-    const id = crypto.randomUUID();
-    const passwordHash = hashPassword(password);
-
-    const newUser = {
-      id,
-      email,
-      password_hash: passwordHash,
-      role,
-    };
-
-    users.push(newUser);
-    localStorage.setItem("skillspring_users", JSON.stringify(users));
-    localStorage.setItem("skillspring_user", JSON.stringify({
-      id,
-      email,
-      role,
-    }));
-    localStorage.setItem("skillspring_password_hash", passwordHash);
-
-    setUser({
-      id,
-      email,
-      role,
-    });
   }
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem("skillspring_user");
-    localStorage.removeItem("skillspring_password_hash");
+  const logout = async () => {
+    setLoading(true)
+    try {
+      await firebaseLogout()
+      setUser(null)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return <AuthContext.Provider value={{ user, login, signup, logout, loading }}>{children}</AuthContext.Provider>
