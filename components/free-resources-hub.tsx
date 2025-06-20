@@ -28,7 +28,16 @@ import {
   Plus,
   FolderPlus,
   X,
-  Maximize
+  Maximize,
+  Monitor,
+  Database,
+  Brain,
+  Shield,
+  Palette,
+  Smartphone,
+  BookmarkCheck,
+  BookmarkPlus,
+  Slider
 } from "lucide-react"
 import { useAuth } from "@/components/auth-provider"
 import { useToast } from "@/hooks/use-toast"
@@ -511,7 +520,8 @@ export function FreeResourcesHub() {
                     className="bg-blue-600 hover:bg-blue-700"
                     onClick={() => {
                       setSelectedResource(resource)
-                      setShowVideoDialog(true)
+                      setShowVideoPlayer(true)
+                      setCurrentVideo(resource)
                     }}
                   >
                     <Play className="w-4 h-4 mr-2" />
