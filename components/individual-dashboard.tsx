@@ -230,7 +230,7 @@ export function IndividualDashboard() {
             message: userMessage.content,
             context: {
               user_activities: activityLogs.slice(0, 5),
-              learning_progress: learningFolders.slice(0, 3),
+              learning_progress: learningPaths.slice(0, 3),
               recent_opportunities: {
                 jobs: liveOpportunities.jobs?.slice(0, 3) || [],
                 internships: liveOpportunities.internships?.slice(0, 3) || [],
@@ -861,8 +861,7 @@ What would you like to explore today? 🚀`,
                 <Button 
                   variant="outline" 
                   size="sm"
-                  onClick={```
-fetchLiveOpportunities}
+                  onClick={fetchLiveOpportunities}
                   disabled={opportunitiesLoading}
                 >
                   {opportunitiesLoading ? 'Refreshing...' : 'Refresh'}
