@@ -1,12 +1,11 @@
-
 "use client"
 
 import type React from "react"
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
+import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { 
   BookOpen, 
@@ -20,11 +19,13 @@ import {
   Star,
   Briefcase,
   Users,
-  MessageSquare
+  MessageSquare,
+  LogOut
 } from "lucide-react"
 import { useAuth } from "@/components/auth-provider"
 import { ResumeUpload } from "@/components/resume-upload"
 import { CertificateTracker } from "@/components/certificate-tracker"
+import { useToast } from "@/hooks/use-toast"
 
 interface LearningPath {
   id: string
@@ -54,11 +55,28 @@ interface CareerInsight {
 }
 
 export function IndividualDashboard() {
-  const { user } = useAuth()
+  const { user, logout } = useAuth()
   const [learningPaths, setLearningPaths] = useState<LearningPath[]>([])
   const [jobRecommendations, setJobRecommendations] = useState<JobRecommendation[]>([])
   const [careerInsights, setCareerInsights] = useState<CareerInsight[]>([])
   const [loading, setLoading] = useState(true)
+  const { toast } = useToast()
+
+  const handleLogout = async () => {
+    try {
+      await logout()
+      toast({
+        title: "Logged out successfully",
+        description: "You have been logged out of your account.",
+      })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to log out. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -123,13 +141,25 @@ export function IndividualDashboard() {
     <div className="min-h-screen gradient-bg">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">
-            Welcome back, {user?.email?.split('@')[0]}!
-          </h1>
-          <p className="text-gray-400">
-            Continue your learning journey and discover new opportunities
-          </p>
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-bold mb-2">
+              Welcome back, {user?.email?.split('@')[0]}!
+            </h1>
+            <p className="text-gray-400">
+              Continue your learning journey and discover new opportunities
+            </p>
+          </div>
+          <div className="flex items-center space-x-4">
+            <Button variant="outline" size="sm">
+              <Users className="w-4 h-4 mr-2" />
+              Profile
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleLogout}>
+              <LogOut className="w-4 h-4 mr-2" />
+              Logout
+            </Button>
+          </div>
         </div>
 
         {/* Main Content */}
@@ -266,7 +296,7 @@ export function IndividualDashboard() {
                       </div>
                       <Progress value={path.progress} className="h-2" />
                     </div>
-                    
+
                     <div className="flex items-center space-x-4 text-sm text-gray-400">
                       <div className="flex items-center">
                         <Clock className="w-4 h-4 mr-1" />
