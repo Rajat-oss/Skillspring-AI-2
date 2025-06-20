@@ -15,7 +15,7 @@ export async function POST(
     const body = await request.json()
     const { status = 'bookmarked' } = body
 
-    const response = await fetch(`http://0.0.0.0:8000/learning/free-resources/${params.resourceId}/bookmark?status=${status}`, {
+    const response = await fetch(`http://localhost:8000/learning/free-resources/${params.resourceId}/bookmark?status=${status}`, {
       method: 'POST',
       headers: {
         'Authorization': authHeader,
