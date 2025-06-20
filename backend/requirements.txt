@@ -7,4 +7,7 @@ passlib[bcrypt]==1.7.4
 python-socketio==5.10.0
 aiofiles==23.2.1
 google-generativeai
-PyJWT==2.8.0
+PyJWT
+beautifulsoup4
+aiohttp
+lxml==2.8.0

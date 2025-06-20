@@ -47,7 +47,7 @@ def init_csv_files():
         with open(USERS_CSV, 'w', newline='') as file:
             writer = csv.writer(file)
             writer.writerow(['id', 'email', 'password_hash', 'role', 'profession', 'created_at'])
-    
+
     if not os.path.exists(LEARNING_PATHS_CSV):
         with open(LEARNING_PATHS_CSV, 'w', newline='') as file:
             writer = csv.writer(file)
@@ -59,7 +59,7 @@ def init_csv_files():
                 ['3', 'AI/ML Engineering', 'Deep dive into artificial intelligence and machine learning', '15', '20 weeks', 'Advanced', 'Python,TensorFlow,PyTorch,Deep Learning'],
             ]
             writer.writerows(sample_paths)
-    
+
     if not os.path.exists(JOBS_CSV):
         with open(JOBS_CSV, 'w', newline='') as file:
             writer = csv.writer(file)
@@ -71,7 +71,7 @@ def init_csv_files():
                 ['3', 'Data Scientist', 'DataCorp', 'New York, NY', '$90,000 - $130,000', '85', 'Python,Machine Learning,SQL', 'Indeed'],
             ]
             writer.writerows(sample_jobs)
-    
+
     if not os.path.exists(CANDIDATES_CSV):
         with open(CANDIDATES_CSV, 'w', newline='') as file:
             writer = csv.writer(file)
@@ -86,6 +86,19 @@ def init_csv_files():
             writer.writerows(sample_candidates)
 
 init_csv_files()
+
+# Start background tasks
+@app.on_event("startup")
+async def startup_event():
+    # Assuming task_manager is defined and initialized elsewhere (e.g., in ai_service.py)
+    from ai_service import task_manager  
+    await task_manager.start()
+
+@app.on_event("shutdown") 
+async def shutdown_event():
+    # Assuming task_manager is defined and initialized elsewhere (e.g., in ai_service.py)
+    from ai_service import task_manager
+    await task_manager.stop()
 
 # Pydantic models
 class UserSignup(BaseModel):
@@ -130,7 +143,7 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
         email: str = payload.get("sub")
         if email is None:
             raise HTTPException(status_code=401, detail="Invalid authentication credentials")
-        
+
         # Get user from CSV
         with open(USERS_CSV, 'r') as file:
             reader = csv.DictReader(file)
@@ -170,12 +183,12 @@ async def signup(user_data: UserSignup):
     for user in users:
         if user['email'] == user_data.email:
             raise HTTPException(status_code=400, detail="Email already registered")
-    
+
     # Create new user
     user_id = str(uuid.uuid4())
     hashed_password = hash_password(user_data.password)
     created_at = datetime.utcnow().isoformat()
-    
+
     new_user = {
         'id': user_id,
         'email': user_data.email,
@@ -184,13 +197,13 @@ async def signup(user_data: UserSignup):
         'profession': user_data.profession,
         'created_at': created_at
     }
-    
+
     users.append(new_user)
     write_csv_data(USERS_CSV, users, ['id', 'email', 'password_hash', 'role', 'profession', 'created_at'])
-    
+
     # Create access token
     access_token = create_access_token(data={"sub": user_data.email})
-    
+
     user_response = User(
         id=user_id,
         email=user_data.email,
@@ -198,7 +211,7 @@ async def signup(user_data: UserSignup):
         profession=user_data.profession,
         created_at=created_at
     )
-    
+
     # Send welcome notification via WebSocket
     asyncio.create_task(send_notification(
         user_id,
@@ -228,17 +241,17 @@ async def signup(user_data: UserSignup):
             },
             "timestamp": datetime.utcnow().isoformat()
         }))
-    
+
     return Token(access_token=access_token, token_type="bearer", user=user_response)
 
 @app.post("/auth/login", response_model=Token)
 async def login(user_data: UserLogin):
     users = read_csv_data(USERS_CSV)
-    
+
     for user in users:
         if user['email'] == user_data.email and verify_password(user_data.password, user['password_hash']):
             access_token = create_access_token(data={"sub": user_data.email})
-            
+
             user_response = User(
                 id=user['id'],
                 email=user['email'],
@@ -246,7 +259,7 @@ async def login(user_data: UserLogin):
                 profession=user['profession'],
                 created_at=user['created_at']
             )
-            
+
             # Send login notification via WebSocket
             asyncio.create_task(send_notification(
                 user['id'],
@@ -256,9 +269,9 @@ async def login(user_data: UserLogin):
                     "timestamp": datetime.utcnow().isoformat()
                 }
             ))
-            
+
             return Token(access_token=access_token, token_type="bearer", user=user_response)
-    
+
     raise HTTPException(status_code=401, detail="Invalid email or password")
 
 @app.get("/auth/verify")
@@ -284,22 +297,22 @@ async def analyze_resume(
 ):
     if current_user.role != "individual":
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     if not file.filename.endswith('.pdf'):
         raise HTTPException(status_code=400, detail="Only PDF files are supported")
-    
+
     try:
         # In a real implementation, you would:
         # 1. Parse the PDF content
         # 2. Extract text using libraries like PyPDF2 or pdfplumber
         # 3. Send to AI service for analysis
         # For now, we'll return mock analysis
-        
+
         await asyncio.sleep(2)  # Simulate processing time
-        
+
         # Mock analysis based on user's profession
         profession = current_user.profession.lower()
-        
+
         if "developer" in profession or "engineer" in profession:
             analysis = ResumeAnalysisResponse(
                 skills=["React", "JavaScript", "Node.js", "Python", "SQL", "AWS"],
@@ -337,9 +350,9 @@ async def analyze_resume(
                 ],
                 ats_score=78
             )
-        
+
         return analysis
-        
+
     except Exception as e:
         print(f"Error analyzing resume: {e}")
         raise HTTPException(status_code=500, detail="Failed to analyze resume")
@@ -348,7 +361,7 @@ async def analyze_resume(
 async def get_career_insights(current_user: User = Depends(get_current_user)):
     if current_user.role != "individual":
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     insights = await AIService.generate_career_insights(current_user.email, current_user.profession)
     return {"insights": insights}
 
@@ -356,7 +369,7 @@ async def get_career_insights(current_user: User = Depends(get_current_user)):
 async def get_startup_insights(current_user: User = Depends(get_current_user)):
     if current_user.role != "startup":
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     insights = await AIService.generate_startup_insights(current_user.email, current_user.profession)
     return {"insights": insights}
 
@@ -371,7 +384,7 @@ async def learn_buddy_course_search(
 ):
     if current_user.role != "individual":
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     ai_service = AIService()
     courses = ai_service.search_courses(request.query)
     return {"courses": courses}
@@ -387,7 +400,7 @@ async def learn_buddy_project_ideas(
 ):
     if current_user.role != "individual":
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     ai_service = AIService()
     query = f"{request.topic} at {request.skill_level} level"
     project_ideas = ai_service.generate_project_ideas(query)
@@ -403,7 +416,7 @@ async def learn_buddy_skill_assessment(
 ):
     if current_user.role != "individual":
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     ai_service = AIService()
     assessment = ai_service.assess_skills(", ".join(request.skills))
     return {"assessment": assessment}
@@ -419,7 +432,7 @@ async def career_path_job_market(
 ):
     if current_user.role != "individual":
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     ai_service = AIService()
     analysis = ai_service.analyze_job_market(request.role)
     return {"analysis": analysis}
@@ -435,13 +448,13 @@ async def career_path_resume_optimization(
 ):
     if current_user.role != "individual":
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     ai_service = AIService()
-    
+
     resume_with_context = request.resume
     if request.target_role:
         resume_with_context = f"Target Role: {request.target_role}\n\nResume:\n{request.resume}"
-    
+
     suggestions = ai_service.optimize_resume(resume_with_context)
     return {"suggestions": suggestions}
 
@@ -456,13 +469,13 @@ async def career_path_interview_prep(
 ):
     if current_user.role != "individual":
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     ai_service = AIService()
-    
+
     query = request.role
     if request.company:
         query = f"{request.role} at {request.company}"
-    
+
     prep_guide = ai_service.prepare_interview(query)
     return {"prep_guide": prep_guide}
 
@@ -479,15 +492,15 @@ async def start_mate_talent_match(
 ):
     if current_user.role != "startup":
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     ai_service = AIService()
-    
+
     requirements = request.job_requirements
     if request.experience_level:
         requirements += f"\nExperience Level: {request.experience_level}"
     if request.location_preference:
         requirements += f"\nLocation Preference: {request.location_preference}"
-    
+
     matches = ai_service.match_talent(requirements)
     return {"matches": matches}
 
@@ -503,15 +516,15 @@ async def start_mate_business_model(
 ):
     if current_user.role != "startup":
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     ai_service = AIService()
-    
+
     business_idea = request.business_idea
     if request.industry:
         business_idea += f"\nIndustry: {request.industry}"
     if request.target_market:
         business_idea += f"\nTarget Market: {request.target_market}"
-    
+
     business_model = ai_service.generate_business_model(business_idea)
     return {"business_model": business_model}
 
@@ -527,15 +540,15 @@ async def start_mate_market_analysis(
 ):
     if current_user.role != "startup":
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     ai_service = AIService()
-    
+
     industry = request.industry
     if request.target_market:
         industry += f" targeting {request.target_market}"
     if request.competitors and len(request.competitors) > 0:
         industry += f" with competitors like {', '.join(request.competitors)}"
-    
+
     analysis = ai_service.analyze_market(industry)
     return {"analysis": analysis}
 
@@ -544,9 +557,9 @@ async def start_mate_market_analysis(
 async def get_learning_paths(current_user: User = Depends(get_current_user)):
     if current_user.role != "individual":
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     paths_data = read_csv_data(LEARNING_PATHS_CSV)
-    
+
     # Convert to proper format
     paths = []
     for path in paths_data:
@@ -559,7 +572,7 @@ async def get_learning_paths(current_user: User = Depends(get_current_user)):
             "difficulty": path['difficulty'],
             "skills": path['skills'].split(',') if path['skills'] else []
         })
-    
+
     return {"paths": paths}
 
 # Job endpoints
@@ -567,9 +580,9 @@ async def get_learning_paths(current_user: User = Depends(get_current_user)):
 async def get_job_recommendations(current_user: User = Depends(get_current_user)):
     if current_user.role != "individual":
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     jobs_data = read_csv_data(JOBS_CSV)
-    
+
     # Convert to proper format
     jobs = []
     for job in jobs_data:
@@ -583,14 +596,14 @@ async def get_job_recommendations(current_user: User = Depends(get_current_user)
             "skills": job['skills'].split(',') if job['skills'] else [],
             "platform": job['platform']
         })
-    
+
     return {"jobs": jobs}
 
 @app.get("/jobs/postings")
 async def get_job_postings(current_user: User = Depends(get_current_user)):
     if current_user.role != "startup":
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     # Mock job postings for startups
     jobs = [
         {
@@ -612,7 +625,7 @@ async def get_job_postings(current_user: User = Depends(get_current_user)):
             "postedDate": "2024-01-12"
         }
     ]
-    
+
     return {"jobs": jobs}
 
 # Candidate endpoints
@@ -620,9 +633,9 @@ async def get_job_postings(current_user: User = Depends(get_current_user)):
 async def discover_candidates(current_user: User = Depends(get_current_user)):
     if current_user.role != "startup":
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     candidates_data = read_csv_data(CANDIDATES_CSV)
-    
+
     # Convert to proper format
     candidates = []
     for candidate in candidates_data:
@@ -637,7 +650,7 @@ async def discover_candidates(current_user: User = Depends(get_current_user)):
             "avatar": f"/placeholder.svg?height=48&width=48",
             "status": candidate['status']
         })
-    
+
     return {"candidates": candidates}
 
 # Student Activity Tracking
@@ -666,7 +679,7 @@ async def log_activity(
     """Log student activity for tracking and analytics"""
     if current_user.role != "individual":
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     # In a real implementation, save to database
     # For now, return success
     return {"status": "logged", "activity_id": activity.id}
@@ -679,7 +692,7 @@ async def update_learning_progress(
     """Update learning path progress"""
     if current_user.role != "individual":
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     # Simulate progress update
     return {
         "status": "updated",
@@ -696,7 +709,7 @@ async def apply_to_job(
     """Apply to a job"""
     if current_user.role != "individual":
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     # Simulate job application
     return {
         "status": "applied",
@@ -710,7 +723,7 @@ async def get_dashboard_stats(current_user: User = Depends(get_current_user)):
     """Get student dashboard statistics"""
     if current_user.role != "individual":
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     # Mock statistics
     return {
         "career_score": 85,
@@ -729,7 +742,7 @@ async def get_personalized_recommendations(current_user: User = Depends(get_curr
     """Get personalized learning and job recommendations"""
     if current_user.role != "individual":
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     # Enhanced recommendations based on user profile
     recommendations = {
         "learning_paths": [
@@ -767,7 +780,7 @@ async def get_personalized_recommendations(current_user: User = Depends(get_curr
             }
         ]
     }
-    
+
     return recommendations
 
 # Enhanced AI Chat endpoint
@@ -783,20 +796,20 @@ async def student_ai_chat(
     """Real-time AI chat using Gemini for career assistance"""
     if current_user.role != "individual":
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     try:
         ai_service = AIService()
-        
+
         # Prepare user context for the AI
         user_context = {
             "role": current_user.role,
             "profession": current_user.profession,
             "email": current_user.email
         }
-        
+
         # Get AI response using Gemini
         response = await ai_service.generate_ai_chat_response(chat.message, user_context)
-        
+
         return {
             "response": response,
             "timestamp": datetime.utcnow().isoformat(),
@@ -809,7 +822,7 @@ async def student_ai_chat(
                 "Help with resume optimization"
             ]
         }
-        
+
     except Exception as e:
         print(f"Error in AI chat: {e}")
         raise HTTPException(status_code=500, detail="AI assistant temporarily unavailable")

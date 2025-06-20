@@ -84,6 +84,22 @@ interface ActivityLog {
   color: string
 }
 
+interface LiveOpportunity {
+  id: string
+  title: string
+  company: string
+  location: string
+  type: 'job' | 'internship' | 'hackathon'
+  posted_date: string
+  apply_url: string
+  tags: string[]
+  description: string
+  salary?: string
+  prize_money?: string
+  deadline?: string
+  platform: string
+}
+
 export function IndividualDashboard() {
   const { user, logout } = useAuth()
   const [learningPaths, setLearningPaths] = useState<LearningPath[]>([])
@@ -103,6 +119,13 @@ export function IndividualDashboard() {
   const [newMessage, setNewMessage] = useState('')
   const [aiLoading, setAiLoading] = useState(false)
   const [showAIAssistant, setShowAIAssistant] = useState(false)
+  const [liveOpportunities, setLiveOpportunities] = useState<{
+    jobs: LiveOpportunity[]
+    internships: LiveOpportunity[]
+    hackathons: LiveOpportunity[]
+    last_updated?: string
+  }>({ jobs: [], internships: [], hackathons: [] })
+  const [opportunitiesLoading, setOpportunitiesLoading] = useState(false)
   const { toast } = useToast()
 
   const handleLogout = async () => {
@@ -130,6 +153,39 @@ export function IndividualDashboard() {
         description: "Failed to log out. Please try again.",
         variant: "destructive",
       })
+    }
+  }
+
+  const fetchLiveOpportunities = async () => {
+    if (!user) return
+    
+    setOpportunitiesLoading(true)
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/opportunities/live', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setLiveOpportunities(data)
+        
+        toast({
+          title: "Opportunities Updated!",
+          description: `Found ${data.total_count?.jobs || 0} jobs, ${data.total_count?.internships || 0} internships, and ${data.total_count?.hackathons || 0} hackathons`,
+        })
+      }
+    } catch (error) {
+      console.error('Error fetching live opportunities:', error)
+      toast({
+        title: "Update Failed",
+        description: "Could not fetch latest opportunities. Using cached data.",
+        variant: "destructive"
+      })
+    } finally {
+      setOpportunitiesLoading(false)
     }
   }
 
@@ -405,6 +461,7 @@ What would you like to explore today? 🚀`,
 
     if (user) {
       fetchDashboardData()
+      fetchLiveOpportunities()
     }
   }, [user])
 
@@ -580,7 +637,7 @@ What would you like to explore today? 🚀`,
 
         {/* Main Content */}
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6 bg-gray-900/50 border-gray-700">
+          <TabsList className="grid w-full grid-cols-7 bg-gray-900/50 border-gray-700">
             <TabsTrigger value="overview" className="data-[state=active]:bg-green-600">
               <Activity className="w-4 h-4 mr-2" />
               Dashboard
@@ -592,6 +649,10 @@ What would you like to explore today? 🚀`,
             <TabsTrigger value="jobs" className="data-[state=active]:bg-purple-600">
               <Briefcase className="w-4 h-4 mr-2" />
               Jobs & Internships
+            </TabsTrigger>
+            <TabsTrigger value="live-opportunities" className="data-[state=active]:bg-pink-600">
+              <Zap className="w-4 h-4 mr-2" />
+              Live Opportunities
             </TabsTrigger>
             <TabsTrigger value="resume" className="data-[state=active]:bg-orange-600">
               <FileText className="w-4 h-4 mr-2" />
@@ -837,6 +898,243 @@ What would you like to explore today? 🚀`,
           {/* Certificates Tab */}
           <TabsContent value="certificates">
             <CertificateTracker />
+          </TabsContent>
+
+          {/* Live Opportunities Tab */}
+          <TabsContent value="live-opportunities" className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-pink-400 flex items-center">
+                <Zap className="w-6 h-6 mr-2" />
+                Live Opportunities Hub
+              </h2>
+              <div className="flex items-center space-x-2">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={fetchLiveOpportunities}
+                  disabled={opportunitiesLoading}
+                >
+                  {opportunitiesLoading ? 'Refreshing...' : 'Refresh'}
+                </Button>
+                {liveOpportunities.last_updated && (
+                  <Badge variant="outline" className="text-xs">
+                    Updated: {new Date(liveOpportunities.last_updated).toLocaleTimeString()}
+                  </Badge>
+                )}
+              </div>
+            </div>
+
+            <Tabs defaultValue="jobs" className="space-y-4">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="jobs">
+                  Latest Jobs ({liveOpportunities.jobs.length})
+                </TabsTrigger>
+                <TabsTrigger value="internships">
+                  Internships ({liveOpportunities.internships.length})
+                </TabsTrigger>
+                <TabsTrigger value="hackathons">
+                  Hackathons ({liveOpportunities.hackathons.length})
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="jobs" className="space-y-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {liveOpportunities.jobs.map((job) => (
+                    <Card key={job.id} className="bg-gray-900/50 border-gray-700 hover:border-blue-500 transition-colors">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-lg">{job.title}</CardTitle>
+                          <Badge className="bg-blue-600">{job.platform}</Badge>
+                        </div>
+                        <CardDescription className="flex items-center space-x-4">
+                          <span>{job.company}</span>
+                          <span className="flex items-center">
+                            <MapPin className="w-3 h-3 mr-1" />
+                            {job.location}
+                          </span>
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        {job.salary && (
+                          <div className="flex items-center text-green-400 font-semibold">
+                            <DollarSign className="w-4 h-4 mr-1" />
+                            {job.salary}
+                          </div>
+                        )}
+                        
+                        <div className="flex flex-wrap gap-1">
+                          {job.tags.slice(0, 4).map((tag) => (
+                            <Badge key={tag} variant="outline" className="text-xs">
+                              {tag}
+                            </Badge>
+                          ))}
+                          {job.tags.length > 4 && (
+                            <Badge variant="outline" className="text-xs">
+                              +{job.tags.length - 4}
+                            </Badge>
+                          )}
+                        </div>
+
+                        <p className="text-sm text-gray-400 line-clamp-2">
+                          {job.description}
+                        </p>
+
+                        <div className="flex items-center justify-between pt-2">
+                          <span className="text-xs text-gray-500">
+                            Posted: {new Date(job.posted_date).toLocaleDateString()}
+                          </span>
+                          <Button 
+                            size="sm" 
+                            className="bg-blue-600 hover:bg-blue-700"
+                            onClick={() => window.open(job.apply_url, '_blank')}
+                          >
+                            Apply Now
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+                {liveOpportunities.jobs.length === 0 && (
+                  <Card className="bg-gray-900/50 border-gray-700">
+                    <CardContent className="text-center py-8">
+                      <p className="text-gray-400">No jobs available at the moment. Check back later!</p>
+                    </CardContent>
+                  </Card>
+                )}
+              </TabsContent>
+
+              <TabsContent value="internships" className="space-y-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {liveOpportunities.internships.map((internship) => (
+                    <Card key={internship.id} className="bg-gray-900/50 border-gray-700 hover:border-green-500 transition-colors">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-lg">{internship.title}</CardTitle>
+                          <Badge className="bg-green-600">{internship.platform}</Badge>
+                        </div>
+                        <CardDescription className="flex items-center space-x-4">
+                          <span>{internship.company}</span>
+                          <span className="flex items-center">
+                            <MapPin className="w-3 h-3 mr-1" />
+                            {internship.location}
+                          </span>
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        {internship.salary && (
+                          <div className="flex items-center text-green-400 font-semibold">
+                            <DollarSign className="w-4 h-4 mr-1" />
+                            {internship.salary}
+                          </div>
+                        )}
+                        
+                        <div className="flex flex-wrap gap-1">
+                          {internship.tags.slice(0, 4).map((tag) => (
+                            <Badge key={tag} variant="outline" className="text-xs">
+                              {tag}
+                            </Badge>
+                          ))}
+                        </div>
+
+                        <p className="text-sm text-gray-400 line-clamp-2">
+                          {internship.description}
+                        </p>
+
+                        <div className="flex items-center justify-between pt-2">
+                          <span className="text-xs text-gray-500">
+                            Posted: {new Date(internship.posted_date).toLocaleDateString()}
+                          </span>
+                          <Button 
+                            size="sm" 
+                            className="bg-green-600 hover:bg-green-700"
+                            onClick={() => window.open(internship.apply_url, '_blank')}
+                          >
+                            Apply Now
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+                {liveOpportunities.internships.length === 0 && (
+                  <Card className="bg-gray-900/50 border-gray-700">
+                    <CardContent className="text-center py-8">
+                      <p className="text-gray-400">No internships available at the moment. Check back later!</p>
+                    </CardContent>
+                  </Card>
+                )}
+              </TabsContent>
+
+              <TabsContent value="hackathons" className="space-y-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {liveOpportunities.hackathons.map((hackathon) => (
+                    <Card key={hackathon.id} className="bg-gray-900/50 border-gray-700 hover:border-purple-500 transition-colors">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-lg">{hackathon.title}</CardTitle>
+                          <Badge className="bg-purple-600">{hackathon.platform}</Badge>
+                        </div>
+                        <CardDescription className="flex items-center space-x-4">
+                          <span>{hackathon.company}</span>
+                          <span className="flex items-center">
+                            <MapPin className="w-3 h-3 mr-1" />
+                            {hackathon.location}
+                          </span>
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        {hackathon.prize_money && (
+                          <div className="flex items-center text-yellow-400 font-semibold">
+                            <Trophy className="w-4 h-4 mr-1" />
+                            Prize: {hackathon.prize_money}
+                          </div>
+                        )}
+                        
+                        <div className="flex flex-wrap gap-1">
+                          {hackathon.tags.slice(0, 4).map((tag) => (
+                            <Badge key={tag} variant="outline" className="text-xs">
+                              {tag}
+                            </Badge>
+                          ))}
+                        </div>
+
+                        <p className="text-sm text-gray-400 line-clamp-2">
+                          {hackathon.description}
+                        </p>
+
+                        <div className="flex items-center justify-between pt-2">
+                          <div className="space-y-1">
+                            <span className="text-xs text-gray-500 block">
+                              Posted: {new Date(hackathon.posted_date).toLocaleDateString()}
+                            </span>
+                            {hackathon.deadline && (
+                              <span className="text-xs text-red-400 block">
+                                Deadline: {new Date(hackathon.deadline).toLocaleDateString()}
+                              </span>
+                            )}
+                          </div>
+                          <Button 
+                            size="sm" 
+                            className="bg-purple-600 hover:bg-purple-700"
+                            onClick={() => window.open(hackathon.apply_url, '_blank')}
+                          >
+                            Register
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+                {liveOpportunities.hackathons.length === 0 && (
+                  <Card className="bg-gray-900/50 border-gray-700">
+                    <CardContent className="text-center py-8">
+                      <p className="text-gray-400">No hackathons available at the moment. Check back later!</p>
+                    </CardContent>
+                  </Card>
+                )}
+              </TabsContent>
+            </Tabs>
           </TabsContent>
 
           {/* Activity Tab */}
