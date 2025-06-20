@@ -38,14 +38,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const verifyToken = async (token: string) => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000'}/auth/verify`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      })
+      // Try multiple backend URLs in case of network issues
+      const backendUrls = [
+        process.env.NEXT_PUBLIC_BACKEND_URL || 'http://0.0.0.0:8000',
+        'http://localhost:8000',
+        'http://127.0.0.1:8000'
+      ]
 
-      if (response.ok) {
+      let response: Response | null = null
+
+      for (const url of backendUrls) {
+        try {
+          response = await fetch(`${url}/auth/verify`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          })
+          
+          if (response.ok) {
+            break
+          }
+        } catch (err) {
+          console.warn(`Failed to verify token with ${url}:`, err)
+          continue
+        }
+      }
+
+      if (response && response.ok) {
         const userData = await response.json()
         setUser(userData)
       } else {
@@ -65,13 +85,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (email: string, password: string, role: "individual" | "startup") => {
     setLoading(true)
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000'}/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      })
+      // Try multiple backend URLs in case of network issues
+      const backendUrls = [
+        process.env.NEXT_PUBLIC_BACKEND_URL || 'http://0.0.0.0:8000',
+        'http://localhost:8000',
+        'http://127.0.0.1:8000'
+      ]
+
+      let response: Response | null = null
+      let lastError: Error | null = null
+
+      for (const url of backendUrls) {
+        try {
+          console.log(`Attempting to connect to: ${url}/auth/login`)
+          response = await fetch(`${url}/auth/login`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ email, password }),
+          })
+          
+          if (response.ok) {
+            console.log(`Successfully connected to: ${url}`)
+            break
+          }
+        } catch (err) {
+          console.warn(`Failed to connect to ${url}:`, err)
+          lastError = err as Error
+          continue
+        }
+      }
+
+      if (!response) {
+        throw new Error(`Cannot connect to backend. Last error: ${lastError?.message}`)
+      }
 
       if (!response.ok) {
         const error = await response.json()
@@ -94,13 +142,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signup = async (email: string, password: string, role: "individual" | "startup", profession: string) => {
     setLoading(true)
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000'}/auth/signup`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password, role, profession }),
-      })
+      // Try multiple backend URLs in case of network issues
+      const backendUrls = [
+        process.env.NEXT_PUBLIC_BACKEND_URL || 'http://0.0.0.0:8000',
+        'http://localhost:8000',
+        'http://127.0.0.1:8000'
+      ]
+
+      let response: Response | null = null
+      let lastError: Error | null = null
+
+      for (const url of backendUrls) {
+        try {
+          console.log(`Attempting to connect to: ${url}/auth/signup`)
+          response = await fetch(`${url}/auth/signup`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ email, password, role, profession }),
+          })
+          
+          if (response.ok) {
+            console.log(`Successfully connected to: ${url}`)
+            break
+          }
+        } catch (err) {
+          console.warn(`Failed to connect to ${url}:`, err)
+          lastError = err as Error
+          continue
+        }
+      }
+
+      if (!response) {
+        throw new Error(`Cannot connect to backend. Last error: ${lastError?.message}`)
+      }
 
       if (!response.ok) {
         const error = await response.json()

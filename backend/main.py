@@ -1175,9 +1175,13 @@ def generate_search_suggestions(query: str) -> List[str]:
     return suggestions[:8]
 
 # Health check
+@app.get("/")
+async def root():
+    return {"message": "SkillSpring Launchpad API is running", "status": "healthy", "timestamp": datetime.utcnow().isoformat()}
+
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
+    return {"status": "healthy", "timestamp": datetime.utcnow().isoformat(), "host": "0.0.0.0:8000"}
 
 if __name__ == "__main__":
     import uvicorn
