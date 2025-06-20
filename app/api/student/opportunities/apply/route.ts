@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
 
     const opportunity = await request.json()
 
-    const response = await fetch('http://localhost:8000/student/opportunities/apply', {
+    const response = await fetch('http://0.0.0.0:8000/student/opportunities/apply', {
       method: 'POST',
       headers: {
         'Authorization': authHeader,
