@@ -877,13 +877,13 @@ What would you like to explore today? 🚀`,
             <Tabs defaultValue="jobs" className="space-y-4">
               <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="jobs">
-                  Latest Jobs ({liveOpportunities.jobs.length})
+                  Latest Jobs ({liveOpportunities.jobs?.length || 0})
                 </TabsTrigger>
                 <TabsTrigger value="internships">
-                  Internships ({liveOpportunities.internships.length})
+                  Internships ({liveOpportunities.internships?.length || 0})
                 </TabsTrigger>
                 <TabsTrigger value="hackathons">
-                  Hackathons ({liveOpportunities.hackathons.length})
+                  Hackathons ({liveOpportunities.hackathons?.length || 0})
                 </TabsTrigger>
               </TabsList>
 
