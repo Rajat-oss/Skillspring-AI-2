@@ -37,6 +37,7 @@ import {
   ThumbsUp
 } from "lucide-react"
 import { useAuth } from "@/components/auth-provider"
+import { useRouter } from "next/navigation"
 import { ResumeUpload } from "@/components/resume-upload"
 import { CertificateTracker } from "@/components/certificate-tracker"
 import { FreeResourcesHub } from "@/components/free-resources-hub"
@@ -103,6 +104,7 @@ interface LiveOpportunity {
 
 export function IndividualDashboard() {
   const { user, logout } = useAuth()
+  const router = useRouter()
   const [learningPaths, setLearningPaths] = useState<LearningPath[]>([])
   const [jobRecommendations, setJobRecommendations] = useState<JobRecommendation[]>([])
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([])
@@ -132,34 +134,25 @@ export function IndividualDashboard() {
   const handleLogout = async () => {
     try {
       await logout()
-      // Log activity
-      const logActivity = {
-        id: Date.now().toString(),
-        type: 'login' as const,
-        title: 'Logged out',
-        description: 'Successfully logged out of your account',
-        timestamp: new Date(),
-        icon: LogOut,
-        color: 'text-gray-400'
-      }
-      setActivityLogs(prev => [logActivity, ...prev])
-
+      localStorage.removeItem('token')
       toast({
         title: "Logged out successfully",
         description: "You have been logged out of your account.",
       })
+      router.push('/')
     } catch (error) {
+      console.error('Logout error:', error)
       toast({
-        title: "Error",
-        description: "Failed to log out. Please try again.",
-        variant: "destructive",
+        title: "Logout failed",
+        description: "Failed to logout. Please try again.",
+        variant: "destructive"
       })
     }
   }
 
   const fetchLiveOpportunities = async () => {
     if (!user) return
-    
+
     setOpportunitiesLoading(true)
     try {
       const token = localStorage.getItem('token')
@@ -172,7 +165,7 @@ export function IndividualDashboard() {
       if (response.ok) {
         const data = await response.json()
         setLiveOpportunities(data)
-        
+
         toast({
           title: "Opportunities Updated!",
           description: `Found ${data.total_count?.jobs || 0} jobs, ${data.total_count?.internships || 0} internships, and ${data.total_count?.hackathons || 0} hackathons`,
@@ -342,17 +335,17 @@ What would you like to explore today? 🚀`,
   useEffect(() => {
     const fetchDashboardData = async () => {
       if (!user) return;
-      
+
       try {
         const token = localStorage.getItem('token')
-        
+
         // Fetch learning paths from backend
         const learningResponse = await fetch('/api/learning/paths', {
           headers: {
             'Authorization': `Bearer ${token}`
           }
         })
-        
+
         // Fetch job recommendations from backend
         const jobsResponse = await fetch('/api/jobs/recommendations', {
           headers: {
@@ -375,7 +368,7 @@ What would you like to explore today? 🚀`,
                    path.progress === 100 ? 'completed' : 'in_progress'
           }))
           setLearningPaths(formattedPaths)
-          
+
           // Calculate average progress
           const avgProgress = Math.round(
             formattedPaths.reduce((acc: number, path: any) => acc + path.progress, 0) / formattedPaths.length
@@ -414,7 +407,7 @@ What would you like to explore today? 🚀`,
 
       } catch (error) {
         console.error('Error fetching dashboard data:', error)
-        
+
         // Fallback to mock data if API fails
         const fallbackPaths: LearningPath[] = [
           {
@@ -450,7 +443,7 @@ What would you like to explore today? 🚀`,
       fetchDashboardData()
       fetchLiveOpportunities()
       const interval = setupRealTimeUpdates()
-      
+
       return () => clearInterval(interval)
     }
   }, [user])
@@ -968,7 +961,7 @@ What would you like to explore today? 🚀`,
                             {job.salary}
                           </div>
                         )}
-                        
+
                         <div className="flex flex-wrap gap-1">
                           {job.tags.slice(0, 4).map((tag) => (
                             <Badge key={tag} variant="outline" className="text-xs">
@@ -1035,7 +1028,7 @@ What would you like to explore today? 🚀`,
                             {internship.salary}
                           </div>
                         )}
-                        
+
                         <div className="flex flex-wrap gap-1">
                           {internship.tags.slice(0, 4).map((tag) => (
                             <Badge key={tag} variant="outline" className="text-xs">
@@ -1097,7 +1090,7 @@ What would you like to explore today? 🚀`,
                             Prize: {hackathon.prize_money}
                           </div>
                         )}
-                        
+
                         <div className="flex flex-wrap gap-1">
                           {hackathon.tags.slice(0, 4).map((tag) => (
                             <Badge key={tag} variant="outline" className="text-xs">

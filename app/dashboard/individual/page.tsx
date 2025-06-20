@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useEffect } from "react"
@@ -10,27 +9,36 @@ export default function IndividualDashboardPage() {
   const { user, loading } = useAuth()
   const router = useRouter()
 
+  console.log('IndividualDashboardPage user:', user)
+  console.log('IndividualDashboardPage loading:', loading)
+
   useEffect(() => {
-    console.log("IndividualDashboardPage user:", user)
-    console.log("IndividualDashboardPage loading:", loading)
     if (!loading && !user) {
-      router.push("/auth/login")
+      console.log('Redirecting to login - no user found')
+      router.push('/auth/login')
     }
   }, [user, loading, router])
 
   if (loading) {
     return (
-      <div className="min-h-screen gradient-bg flex items-center justify-center">
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-green-500 mx-auto"></div>
-          <p className="mt-4 text-gray-300">Loading your dashboard...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-400">Loading dashboard...</p>
         </div>
       </div>
     )
   }
 
   if (!user) {
-    return null
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-400">Redirecting to login...</p>
+        </div>
+      </div>
+    )
   }
 
   return <IndividualDashboard />
