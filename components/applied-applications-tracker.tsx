@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState, useEffect } from 'react'
@@ -27,7 +26,7 @@ import {
   Briefcase,
   Users,
   MapPin,
-  Sync
+  RotateCcw
 } from "lucide-react"
 import { useAuth } from "@/components/auth-provider"
 import { useToast } from "@/hooks/use-toast"
@@ -169,7 +168,7 @@ export function AppliedApplicationsTracker() {
       if (response.ok) {
         const data = await response.json()
         window.open(data.auth_url, '_blank')
-        
+
         toast({
           title: "Gmail Authorization",
           description: "Please complete the authorization in the new window.",
@@ -203,7 +202,7 @@ export function AppliedApplicationsTracker() {
           title: "Sync Complete",
           description: `Found ${data.new_applications} new applications.`,
         })
-        
+
         fetchApplications()
       }
     } catch (error) {
@@ -223,7 +222,7 @@ export function AppliedApplicationsTracker() {
       app.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       app.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
       app.platform.toLowerCase().includes(searchQuery.toLowerCase())
-    
+
     const matchesType = selectedType === '' || app.type === selectedType
     const matchesStatus = selectedStatus === '' || app.status === selectedStatus
     const matchesPlatform = selectedPlatform === '' || app.platform === selectedPlatform
@@ -304,7 +303,7 @@ export function AppliedApplicationsTracker() {
                 View Application
               </Button>
             )}
-            
+
             <Button
               variant="ghost"
               size="sm"
@@ -343,7 +342,7 @@ export function AppliedApplicationsTracker() {
             Track all your job, internship, and hackathon applications automatically
           </p>
         </div>
-        
+
         <div className="flex items-center space-x-3">
           {!gmailConnected ? (
             <Button onClick={connectGmail} className="bg-red-600 hover:bg-red-700">
@@ -359,7 +358,7 @@ export function AppliedApplicationsTracker() {
               {syncing ? (
                 <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
               ) : (
-                <Sync className="w-4 h-4 mr-2" />
+                <RotateCcw className="w-4 h-4 mr-2" />
               )}
               {syncing ? 'Syncing...' : 'Sync Now'}
             </Button>
