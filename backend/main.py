@@ -20,7 +20,7 @@ app = FastAPI(title="SkillSpring Launchpad API", version="1.0.0")
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for development
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:3001", "http://127.0.0.1:3001"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -251,13 +251,10 @@ async def signup(user_data: UserSignup):
 
 @app.post("/auth/login", response_model=Token)
 async def login(user_data: UserLogin):
-    print(f"Login attempt for email: {user_data.email}")
     users = read_csv_data(USERS_CSV)
-    print(f"Found {len(users)} users in database")
 
     for user in users:
         if user['email'] == user_data.email and verify_password(user_data.password, user['password_hash']):
-            print(f"Login successful for user: {user_data.email}")
             access_token = create_access_token(data={"sub": user_data.email})
 
             user_response = User(
@@ -280,7 +277,6 @@ async def login(user_data: UserLogin):
 
             return Token(access_token=access_token, token_type="bearer", user=user_response)
 
-    print(f"Login failed for email: {user_data.email}")
     raise HTTPException(status_code=401, detail="Invalid email or password")
 
 @app.get("/auth/verify")

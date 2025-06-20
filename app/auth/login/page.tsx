@@ -29,16 +29,15 @@ export default function LoginPage() {
     try {
       await login(email, password, "individual")
       toast({
-        title: "Login successful",
-        description: "Welcome back to SkillSpring!"
+        title: "Welcome back!",
+        description: "You've been logged in successfully.",
       })
       router.push("/dashboard/individual")
-    } catch (error: any) {
-      console.error('Login error:', error)
+    } catch (error) {
       toast({
-        title: "Login failed",
-        description: error.message || "Please check your credentials and try again.",
-        variant: "destructive"
+        title: "Error",
+        description: "Invalid credentials. Please try again.",
+        variant: "destructive",
       })
     } finally {
       setLoading(false)

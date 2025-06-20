@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Authorization required' }, { status: 401 })
     }
 
-    const response = await fetch('http://localhost:8000/learning/free-resources/categories', {
+    const response = await fetch('http://0.0.0.0:8000/learning/free-resources/categories', {
       headers: {
         'Authorization': authHeader,
         'Content-Type': 'application/json',

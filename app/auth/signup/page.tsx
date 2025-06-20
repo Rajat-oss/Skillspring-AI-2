@@ -27,31 +27,29 @@ export default function SignupPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
 
     if (password !== confirmPassword) {
       toast({
-        title: "Password mismatch",
-        description: "Please make sure your passwords match.",
-        variant: "destructive"
+        title: "Error",
+        description: "Passwords don't match",
+        variant: "destructive",
       })
-      setLoading(false)
       return
     }
 
+    setLoading(true)
     try {
-      await signup(email, password, "individual", profession)
+      await signup(email, password, "individual")
       toast({
-        title: "Account created successfully",
-        description: "Welcome to SkillSpring!"
+        title: "Welcome to SkillSpring!",
+        description: "Your account has been created successfully.",
       })
       router.push("/dashboard/individual")
-    } catch (error: any) {
-      console.error('Signup error:', error)
+    } catch (error) {
       toast({
-        title: "Signup failed",
-        description: error.message || "Please try again.",
-        variant: "destructive"
+        title: "Error",
+        description: "Failed to create account. Please try again.",
+        variant: "destructive",
       })
     } finally {
       setLoading(false)
