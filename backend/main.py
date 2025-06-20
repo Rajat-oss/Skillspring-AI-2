@@ -13,6 +13,7 @@ import asyncio
 from ai_service import AIService
 from websocket_service import socket_app, send_notification, broadcast_job_update, broadcast_candidate_update, update_market_insights
 from user_activity import log_user_activity, log_user_application, get_user_activities, get_user_applications
+from free_resources_service import FreeResourcesService
 
 app = FastAPI(title="SkillSpring Launchpad API", version="1.0.0")
 
@@ -87,6 +88,9 @@ def init_csv_files():
             writer.writerows(sample_candidates)
 
 init_csv_files()
+
+# Initialize services
+free_resources_service = FreeResourcesService()
 
 # Start background tasks
 @app.on_event("startup")
@@ -915,6 +919,150 @@ async def student_ai_chat(
     except Exception as e:
         print(f"Error in AI chat: {e}")
         raise HTTPException(status_code=500, detail="AI assistant temporarily unavailable")
+
+# Free Resources endpoints
+@app.get("/learning/free-resources")
+async def get_free_resources(
+    search: Optional[str] = None,
+    category: Optional[str] = None,
+    level: Optional[str] = None,
+    language: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
+):
+    """Get free learning resources with optional filters"""
+    if current_user.role != "individual":
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    resources = free_resources_service.search_resources(
+        query=search or "",
+        category=category or "",
+        level=level or "",
+        language=language or ""
+    )
+    
+    # Get user's bookmarks to add status
+    user_bookmarks = free_resources_service.get_user_bookmarks(current_user.id)
+    bookmark_dict = {b['id']: b for b in user_bookmarks}
+    
+    # Add bookmark status to resources
+    for resource in resources:
+        if resource['id'] in bookmark_dict:
+            bookmark = bookmark_dict[resource['id']]
+            resource['bookmark_status'] = bookmark['bookmark_status']
+            resource['progress'] = bookmark['progress']
+        else:
+            resource['bookmark_status'] = None
+            resource['progress'] = 0
+    
+    return {"resources": resources}
+
+@app.get("/learning/free-resources/categories")
+async def get_resource_categories(current_user: User = Depends(get_current_user)):
+    """Get all available resource categories"""
+    if current_user.role != "individual":
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    categories = free_resources_service.get_categories()
+    levels = free_resources_service.get_levels()
+    languages = free_resources_service.get_languages()
+    
+    return {
+        "categories": categories,
+        "levels": levels,
+        "languages": languages
+    }
+
+@app.get("/learning/free-resources/bookmarks")
+async def get_user_bookmarks(current_user: User = Depends(get_current_user)):
+    """Get user's bookmarked resources"""
+    if current_user.role != "individual":
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    bookmarks = free_resources_service.get_user_bookmarks(current_user.id)
+    return {"bookmarks": bookmarks}
+
+@app.post("/learning/free-resources/{resource_id}/bookmark")
+async def bookmark_resource(
+    resource_id: str,
+    status: str = "bookmarked",
+    current_user: User = Depends(get_current_user)
+):
+    """Bookmark a resource"""
+    if current_user.role != "individual":
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    valid_statuses = ["bookmarked", "in_progress", "completed"]
+    if status not in valid_statuses:
+        raise HTTPException(status_code=400, detail="Invalid status")
+    
+    result = free_resources_service.bookmark_resource(current_user.id, resource_id, status)
+    
+    # Log activity
+    log_user_activity(
+        current_user.id,
+        'resource_bookmarked',
+        f'Resource {status}',
+        f'Marked resource as {status}',
+        {'resource_id': resource_id, 'status': status}
+    )
+    
+    return result
+
+@app.post("/learning/free-resources/{resource_id}/progress")
+async def update_resource_progress(
+    resource_id: str,
+    progress: int,
+    current_user: User = Depends(get_current_user)
+):
+    """Update learning progress for a resource"""
+    if current_user.role != "individual":
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    if not 0 <= progress <= 100:
+        raise HTTPException(status_code=400, detail="Progress must be between 0 and 100")
+    
+    result = free_resources_service.update_progress(current_user.id, resource_id, progress)
+    
+    # Log activity
+    status_text = "completed" if progress >= 100 else "updated progress on"
+    log_user_activity(
+        current_user.id,
+        'learning_progress',
+        f'Learning progress {status_text}',
+        f'Updated progress to {progress}% on resource',
+        {'resource_id': resource_id, 'progress': progress}
+    )
+    
+    return result
+
+@app.get("/learning/free-resources/recommendations")
+async def get_recommended_resources(current_user: User = Depends(get_current_user)):
+    """Get AI-recommended free resources"""
+    if current_user.role != "individual":
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    user_profile = {
+        'profession': current_user.profession,
+        'email': current_user.email
+    }
+    
+    recommendations = free_resources_service.get_recommended_resources(user_profile)
+    
+    # Get user's bookmarks to add status
+    user_bookmarks = free_resources_service.get_user_bookmarks(current_user.id)
+    bookmark_dict = {b['id']: b for b in user_bookmarks}
+    
+    # Add bookmark status to recommendations
+    for resource in recommendations:
+        if resource['id'] in bookmark_dict:
+            bookmark = bookmark_dict[resource['id']]
+            resource['bookmark_status'] = bookmark['bookmark_status']
+            resource['progress'] = bookmark['progress']
+        else:
+            resource['bookmark_status'] = None
+            resource['progress'] = 0
+    
+    return {"recommendations": recommendations}
 
 # Health check
 @app.get("/health")

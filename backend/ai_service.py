@@ -4,6 +4,22 @@ from typing import List, Dict, Optional
 import asyncio
 import google.generativeai as genai
 
+class TaskManager:
+    """Simple task manager for background operations"""
+    def __init__(self):
+        self.running = False
+    
+    async def start(self):
+        self.running = True
+        print("Task manager started")
+    
+    async def stop(self):
+        self.running = False
+        print("Task manager stopped")
+
+# Global task manager instance
+task_manager = TaskManager()
+
 class AIService:
     def __init__(self):
         # Configure Gemini AI
@@ -56,7 +72,35 @@ User Message: {message}"""
         """Fallback responses when AI is unavailable"""
         query = message.lower()
         
-        if any(word in query for word in ['career', 'job', 'future', 'path']):
+        if any(word in query for word in ['free', 'resources', 'course', 'tutorial']):
+            return """🆓 **Free Learning Resources**
+
+I can help you discover amazing free educational content! Our Free Resources Hub includes:
+
+**Top Platforms:**
+• freeCodeCamp - Complete web development courses
+• CS50 Harvard - Computer science fundamentals  
+• Coursera Free Courses - University-level content
+• Khan Academy - Interactive learning
+• MIT OpenCourseWare - World-class education
+
+**Categories Available:**
+• Web Development (React, Node.js, JavaScript)
+• Data Science (Python, Machine Learning)
+• AI & Deep Learning
+• Cybersecurity
+• UI/UX Design
+• Mobile Development
+
+**Features:**
+• Watch videos directly in dashboard
+• Track your progress
+• Bookmark favorites
+• AI-powered recommendations
+
+Check out the "Free Resources Hub" in your Learning tab! 🎓"""
+
+        elif any(word in query for word in ['career', 'job', 'future', 'path']):
             return """🎯 **Career Guidance**
 
 I'm here to help with your career journey! Here are some key areas I can assist with:
@@ -71,35 +115,37 @@ I'm here to help with your career journey! Here are some key areas I can assist 
 • Optimize your resume for ATS systems
 • Prepare for interviews
 
-**Skill Development:**
-• Recommend learning paths
-• Identify skill gaps
-• Suggest certifications
+**Free Learning Resources:**
+• Access curated courses from top platforms
+• Build skills with hands-on projects
+• Get certificates from recognized institutions
 
 What specific career aspect would you like to explore? 🚀"""
 
-        elif any(word in query for word in ['skill', 'learn', 'course', 'study']):
+        elif any(word in query for word in ['skill', 'learn', 'study']):
             return """📚 **Learning & Skill Development**
 
-**Popular Learning Paths:**
+**Free Learning Paths Available:**
 • Full-Stack Development (React, Node.js, Databases)
-• Data Science & Analytics
+• Data Science & Analytics (Python, Pandas, ML)
 • Cloud Computing (AWS, Azure, GCP)
-• AI/Machine Learning
-• Cybersecurity
+• AI/Machine Learning (TensorFlow, PyTorch)
+• Cybersecurity (Ethical Hacking, Network Security)
 
 **Learning Strategy Tips:**
-• Set clear, measurable goals
+• Start with beginner-friendly free courses
 • Practice with real projects
 • Join coding communities
 • Build a portfolio
+• Track progress in our Free Resources Hub
 
-**Skill Assessment:**
-• Take online assessments
-• Get feedback from peers
-• Track progress regularly
+**Popular Free Platforms:**
+• freeCodeCamp (40+ hour bootcamps)
+• CS50 Harvard (World-class computer science)
+• Kaggle Learn (Data science micro-courses)
+• Google AI Education (Machine learning)
 
-What skills are you interested in developing? 💡"""
+Check out the Free Resources Hub for unlimited learning! 💡"""
 
         else:
             return """👋 **AI Career Assistant**
@@ -107,17 +153,21 @@ What skills are you interested in developing? 💡"""
 I'm here to help you succeed in your career! I can assist with:
 
 🎯 **Career Planning** - Path recommendations, goal setting
-📚 **Learning Guidance** - Course suggestions, skill development
+🆓 **Free Learning** - Access to world's best free courses
 💼 **Job Search** - Resume tips, interview prep, job matching
 📊 **Market Insights** - Salary data, industry trends
 🚀 **Growth Strategies** - Networking, personal branding
 
-Just ask me anything about your career development, and I'll provide personalized guidance!
+**New Feature: Free Resources Hub!**
+• 1000+ curated free courses
+• YouTube tutorials, CS50, freeCodeCamp
+• Watch videos directly in dashboard
+• Track progress and bookmark favorites
 
 *Example questions:*
+• "Show me free Python courses"
 • "What skills should I learn for data science?"
-• "How can I transition to a tech role?"
-• "What's the job market like for developers?"
+• "Find me web development tutorials"
 
 How can I help you today? 😊"""
 

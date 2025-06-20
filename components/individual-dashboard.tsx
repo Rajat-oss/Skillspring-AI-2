@@ -39,6 +39,7 @@ import {
 import { useAuth } from "@/components/auth-provider"
 import { ResumeUpload } from "@/components/resume-upload"
 import { CertificateTracker } from "@/components/certificate-tracker"
+import { FreeResourcesHub } from "@/components/free-resources-hub"
 import { useToast } from "@/hooks/use-toast"
 
 interface LearningPath {
@@ -723,73 +724,90 @@ What would you like to explore today? 🚀`,
 
           {/* Enhanced Learning Tab */}
           <TabsContent value="learning" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {learningPaths.map((path) => (
-                <Card key={path.id} className="bg-gray-900/50 border-gray-700 hover:border-blue-600 transition-colors">
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg">{path.title}</CardTitle>
-                      <div className="flex items-center space-x-2">
-                        <Badge variant={path.difficulty === 'Beginner' ? 'secondary' : path.difficulty === 'Intermediate' ? 'default' : 'destructive'}>
-                          {path.difficulty}
-                        </Badge>
-                        {path.status === 'completed' && (
-                          <Badge className="bg-green-600">
-                            <CheckCircle className="w-3 h-3 mr-1" />
-                            Completed
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                    <CardDescription>{path.description}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span>Progress</span>
-                        <span>{path.progress}%</span>
-                      </div>
-                      <Progress value={path.progress} className="h-3" />
-                    </div>
+            <Tabs defaultValue="courses" className="space-y-6">
+              <TabsList className="grid w-full grid-cols-2 bg-gray-900/50">
+                <TabsTrigger value="courses" className="data-[state=active]:bg-blue-600">
+                  Learning Paths
+                </TabsTrigger>
+                <TabsTrigger value="free-resources" className="data-[state=active]:bg-green-600">
+                  Free Resources Hub
+                </TabsTrigger>
+              </TabsList>
 
-                    <div className="flex items-center space-x-4 text-sm text-gray-400">
-                      <div className="flex items-center">
-                        <Clock className="w-4 h-4 mr-1" />
-                        {path.estimatedTime}
-                      </div>
-                      {path.lastAccessed && (
-                        <div className="flex items-center">
-                          <Calendar className="w-4 h-4 mr-1" />
-                          {new Date(path.lastAccessed).toLocaleDateString()}
+              <TabsContent value="courses" className="space-y-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {learningPaths.map((path) => (
+                    <Card key={path.id} className="bg-gray-900/50 border-gray-700 hover:border-blue-600 transition-colors">
+                      <CardHeader>
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-lg">{path.title}</CardTitle>
+                          <div className="flex items-center space-x-2">
+                            <Badge variant={path.difficulty === 'Beginner' ? 'secondary' : path.difficulty === 'Intermediate' ? 'default' : 'destructive'}>
+                              {path.difficulty}
+                            </Badge>
+                            {path.status === 'completed' && (
+                              <Badge className="bg-green-600">
+                                <CheckCircle className="w-3 h-3 mr-1" />
+                                Completed
+                              </Badge>
+                            )}
+                          </div>
                         </div>
-                      )}
-                    </div>
+                        <CardDescription>{path.description}</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-sm">
+                            <span>Progress</span>
+                            <span>{path.progress}%</span>
+                          </div>
+                          <Progress value={path.progress} className="h-3" />
+                        </div>
 
-                    <div className="flex flex-wrap gap-2">
-                      {path.skills.slice(0, 3).map((skill) => (
-                        <Badge key={skill} variant="outline" className="text-xs">
-                          {skill}
-                        </Badge>
-                      ))}
-                      {path.skills.length > 3 && (
-                        <Badge variant="outline" className="text-xs">
-                          +{path.skills.length - 3} more
-                        </Badge>
-                      )}
-                    </div>
+                        <div className="flex items-center space-x-4 text-sm text-gray-400">
+                          <div className="flex items-center">
+                            <Clock className="w-4 h-4 mr-1" />
+                            {path.estimatedTime}
+                          </div>
+                          {path.lastAccessed && (
+                            <div className="flex items-center">
+                              <Calendar className="w-4 h-4 mr-1" />
+                              {new Date(path.lastAccessed).toLocaleDateString()}
+                            </div>
+                          )}
+                        </div>
 
-                    <Button 
-                      className="w-full bg-blue-600 hover:bg-blue-700"
-                      onClick={() => handleContinueLearning(path.id)}
-                      disabled={path.status === 'completed'}
-                    >
-                      {path.progress === 0 ? 'Start Learning' : 
-                       path.status === 'completed' ? 'Completed' : 'Continue Learning'}
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                        <div className="flex flex-wrap gap-2">
+                          {path.skills.slice(0, 3).map((skill) => (
+                            <Badge key={skill} variant="outline" className="text-xs">
+                              {skill}
+                            </Badge>
+                          ))}
+                          {path.skills.length > 3 && (
+                            <Badge variant="outline" className="text-xs">
+                              +{path.skills.length - 3} more
+                            </Badge>
+                          )}
+                        </div>
+
+                        <Button 
+                          className="w-full bg-blue-600 hover:bg-blue-700"
+                          onClick={() => handleContinueLearning(path.id)}
+                          disabled={path.status === 'completed'}
+                        >
+                          {path.progress === 0 ? 'Start Learning' : 
+                           path.status === 'completed' ? 'Completed' : 'Continue Learning'}
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="free-resources">
+                <FreeResourcesHub />
+              </TabsContent>
+            </Tabs>
           </TabsContent>
 
           {/* Enhanced Jobs Tab */}
