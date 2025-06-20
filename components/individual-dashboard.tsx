@@ -1,4 +1,3 @@
-
 "use client"
 
 import type React from "react"
@@ -120,7 +119,7 @@ export function IndividualDashboard() {
         color: 'text-gray-400'
       }
       setActivityLogs(prev => [logActivity, ...prev])
-      
+
       toast({
         title: "Logged out successfully",
         description: "You have been logged out of your account.",
@@ -161,115 +160,62 @@ export function IndividualDashboard() {
     setActivityLogs(prev => [logActivity, ...prev])
 
     try {
-      // Simulate AI response based on user query
-      let response = ''
-      const query = newMessage.toLowerCase()
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/ai/chat/student-assistant', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          message: userMessage.content,
+          context: {
+            role: user?.role,
+            profession: user?.email?.split('@')[0]
+          }
+        })
+      })
 
-      if (query.includes('career') && query.includes('suit')) {
-        response = `Based on your current skills and interests in ${user?.profession}, I'd recommend exploring these career paths:
-
-🚀 **Tech Leadership**: With your growing expertise, consider roles like Technical Lead or Engineering Manager
-💡 **Product Development**: Your skills could translate well into Product Manager roles
-🌐 **Full-Stack Development**: Continue building both frontend and backend expertise
-📊 **Data-Driven Roles**: Consider roles that combine tech skills with analytics
-
-Your current career score of ${careerScore} shows strong potential. Focus on completing your React and Node.js learning paths to boost your marketability!`
-      } else if (query.includes('job') || query.includes('recommend')) {
-        response = `Here are personalized job recommendations based on your profile:
-
-🎯 **Top Matches** (90%+ compatibility):
-• Senior Frontend Developer at TechCorp - $85K-$120K
-• Full-Stack Engineer at StartupXYZ - $80K-$115K
-• React Developer at InnovateLab - $75K-$110K
-
-💼 **Growth Opportunities**:
-• Technical Lead positions (average 25% salary increase)
-• Remote opportunities (60% more options available)
-
-🔥 **Hot Skills to Add**: TypeScript, AWS, Docker
-These could increase your match rate by 15-20%!
-
-Would you like me to help you prepare for applications to any of these roles?`
-      } else if (query.includes('interview') || query.includes('prepare')) {
-        response = `Great question! Here's your personalized interview prep strategy:
-
-🎯 **Technical Preparation**:
-• Practice coding problems on LeetCode (focus on React patterns)
-• Review system design basics
-• Prepare to explain your projects in detail
-
-💼 **Behavioral Questions**:
-• Use the STAR method (Situation, Task, Action, Result)
-• Prepare examples of problem-solving and teamwork
-• Practice your "tell me about yourself" story
-
-📚 **Company Research**:
-• Study the company's tech stack and recent projects
-• Prepare thoughtful questions about their engineering culture
-• Understand their product and market position
-
-🚀 **Quick Win**: Complete the "Advanced React Patterns" course in your learning path - many interviewers ask about hooks and state management!`
-      } else if (query.includes('skill') || query.includes('learn')) {
-        response = `Perfect timing! Based on your current progress, here's your personalized learning roadmap:
-
-📈 **Priority Skills** (High Impact):
-1. **TypeScript** - 40% of jobs require this
-2. **AWS/Cloud Services** - Growing demand (+35% this year)
-3. **Testing (Jest/Cypress)** - Shows professional readiness
-
-🎯 **Recommended Learning Path**:
-• Complete your current React fundamentals (35% done)
-• Start Node.js backend development
-• Add database skills (MongoDB/PostgreSQL)
-
-⏰ **Time Investment**: 2-3 hours/week for 12 weeks
-🎖️ **Expected Outcome**: +20% salary potential, +40% more job matches
-
-Your current learning streak: 5 days! Keep it up! 🔥`
-      } else {
-        response = `I'm here to help with your career journey! I can assist with:
-
-🎯 **Career Guidance**:
-• "What career path suits me?"
-• "How to advance in my field?"
-• "Should I switch to a different role?"
-
-💼 **Job Search Support**:
-• "Suggest jobs based on my skills"
-• "How to improve my resume?"
-• "What's my market value?"
-
-📚 **Learning & Skills**:
-• "What skills should I learn next?"
-• "Recommend courses for my career goals"
-• "How to stay competitive?"
-
-🎤 **Interview Preparation**:
-• "How to prepare for technical interviews?"
-• "Common questions for my role?"
-• "How to negotiate salary?"
-
-Just ask me anything about your career development! 🚀`
+      if (!response.ok) {
+        throw new Error('Failed to get AI response')
       }
+
+      const data = await response.json()
 
       const assistantMessage: AIMessage = {
         id: (Date.now() + 1).toString(),
         type: 'assistant',
-        content: response,
+        content: data.response,
         timestamp: new Date()
       }
 
-      setTimeout(() => {
-        setAiMessages(prev => [...prev, assistantMessage])
-        setAiLoading(false)
-      }, 1500)
+      setAiMessages(prev => [...prev, assistantMessage])
+      setAiLoading(false)
 
     } catch (error) {
       setAiLoading(false)
+
+      // Fallback response if API fails
+      const fallbackMessage: AIMessage = {
+        id: (Date.now() + 1).toString(),
+        type: 'assistant',
+        content: `I'm here to help with your career journey! I can assist with:
+
+🎯 **Career Guidance**: Path recommendations, goal setting
+📚 **Learning**: Course suggestions, skill development  
+💼 **Job Search**: Resume tips, interview prep
+📊 **Market Insights**: Salary data, industry trends
+
+What would you like to explore today? 🚀`,
+        timestamp: new Date()
+      }
+
+      setAiMessages(prev => [...prev, fallbackMessage])
+
       toast({
-        title: "AI Assistant Error",
-        description: "Failed to get response. Please try again.",
-        variant: "destructive",
+        title: "Using Offline Mode",
+        description: "AI assistant is running in offline mode. Full features available online.",
+        variant: "default"
       })
     }
   }
@@ -306,7 +252,7 @@ Just ask me anything about your career development! 🚀`
       if (path.id === pathId) {
         const newProgress = Math.min(path.progress + 10, 100)
         const newStatus = newProgress === 100 ? 'completed' : 'in_progress'
-        
+
         if (newProgress === 100) {
           const logActivity = {
             id: Date.now().toString(),
@@ -443,7 +389,7 @@ Just ask me anything about your career development! 🚀`
         setLearningPaths(mockLearningPaths)
         setJobRecommendations(mockJobs)
         setActivityLogs(mockActivityLogs)
-        
+
         // Calculate average progress
         const avgProgress = Math.round(
           mockLearningPaths.reduce((acc, path) => acc + path.progress, 0) / mockLearningPaths.length
@@ -504,7 +450,7 @@ Just ask me anything about your career development! 🚀`
                     Get personalized career advice, job recommendations, and learning guidance
                   </SheetDescription>
                 </SheetHeader>
-                
+
                 <div className="flex flex-col h-[calc(100vh-120px)] mt-6">
                   <ScrollArea className="flex-1 pr-4">
                     <div className="space-y-4">
@@ -540,7 +486,7 @@ Just ask me anything about your career development! 🚀`
                       )}
                     </div>
                   </ScrollArea>
-                  
+
                   <div className="flex items-center space-x-2 mt-4 pt-4 border-t border-gray-700">
                     <Input
                       value={newMessage}
@@ -557,7 +503,7 @@ Just ask me anything about your career development! 🚀`
                 </div>
               </SheetContent>
             </Sheet>
-            
+
             <Button variant="outline" size="sm">
               <Users className="w-4 h-4 mr-2" />
               Profile
@@ -809,7 +755,7 @@ Just ask me anything about your career development! 🚀`
                 </Badge>
               </div>
             </div>
-            
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {jobRecommendations.map((job) => (
                 <Card key={job.id} className="bg-gray-900/50 border-gray-700 hover:border-purple-600 transition-colors">

@@ -48,6 +48,30 @@ async def join_startup_room(sid, data):
         await sio.enter_room(sid, "startups")
         print(f"Startup user {user_id} joined startup room")
 
+@sio.event
+async def ai_chat_message(sid, data):
+    """Handle real-time AI chat messages"""
+    try:
+        from ai_service import AIService
+        
+        message = data.get('message', '')
+        user_context = data.get('user_context', {})
+        
+        ai_service = AIService()
+        response = await ai_service.generate_ai_chat_response(message, user_context)
+        
+        # Send response back to the user
+        await sio.emit('ai_chat_response', {
+            'response': response,
+            'timestamp': datetime.utcnow().isoformat()
+        }, room=sid)
+        
+    except Exception as e:
+        await sio.emit('ai_chat_error', {
+            'error': 'AI assistant temporarily unavailable',
+            'timestamp': datetime.utcnow().isoformat()
+        }, room=sid)
+
 async def send_notification(user_id: str, notification_type: str, data: Dict[str, Any]):
     """Send notification to specific user"""
     try:
