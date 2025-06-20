@@ -101,33 +101,30 @@ export function LandingPage() {
             <Badge className="bg-green-600 text-white px-4 py-2 text-sm">
               🚀 Welcome to Your Future
             </Badge>
-            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold bg-gradient-to-r from-green-400 via-blue-500 to-purple-600 bg-clip-text text-transparent">
-              SkillSpring AI
-            </h1>
-            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold bg-gradient-to-r from-green-400 via-blue-500 to-purple-600 bg-clip-text text-transparent">
+            <h1 className="text-5xl md:text-7xl font-bold bg-gradient-to-r from-green-400 via-blue-500 to-purple-600 bg-clip-text text-transparent">
               Start Your Learning Journey
-            </h2>
+            </h1>
             <p className="text-xl md:text-2xl text-gray-300 max-w-3xl mx-auto">
               Transform your career with AI-powered learning, personalized job recommendations, 
               and expert guidance. Your dream job is just a learning path away.
             </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full max-w-lg mx-auto">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Button 
               onClick={() => router.push('/auth/signup')}
               size="lg" 
-              className="w-full sm:w-auto bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white px-6 sm:px-8 py-4 sm:py-6 text-base sm:text-lg font-semibold rounded-xl"
+              className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white px-8 py-6 text-lg font-semibold rounded-xl"
             >
-              <Rocket className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+              <Rocket className="w-5 h-5 mr-2" />
               Begin Your Journey
-              <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 ml-2" />
+              <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
             <Button 
               onClick={() => router.push('/auth/login')}
               variant="outline" 
               size="lg"
-              className="w-full sm:w-auto border-gray-600 text-gray-300 hover:bg-gray-800 px-6 sm:px-8 py-4 sm:py-6 text-base sm:text-lg rounded-xl"
+              className="border-gray-600 text-gray-300 hover:bg-gray-800 px-8 py-6 text-lg rounded-xl"
             >
               Continue Learning
             </Button>

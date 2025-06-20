@@ -30,7 +30,6 @@ import {
 } from "lucide-react"
 import { useAuth } from "@/components/auth-provider"
 import { useToast } from "@/hooks/use-toast"
-import { Plus } from 'lucide-react'
 
 interface Application {
   id: string
@@ -77,7 +76,6 @@ export function AppliedApplicationsTracker() {
   const [selectedStatus, setSelectedStatus] = useState('')
   const [selectedPlatform, setSelectedPlatform] = useState('')
   const [activeTab, setActiveTab] = useState('all')
-  const [showAddDialog, setShowAddDialog] = useState(false) // State for add dialog
   const statusColors = {
     'applied': 'bg-blue-500',
     'selected': 'bg-green-500',
@@ -173,7 +171,7 @@ export function AppliedApplicationsTracker() {
 
       setApplications(mockApplications)
       setStats(mockStats)
-
+      
       toast({
         title: "Applications Loaded",
         description: `Found ${mockApplications.length} applications from your profiles`,
@@ -195,7 +193,7 @@ export function AppliedApplicationsTracker() {
     try {
       // Simulate syncing from platforms like Unstop
       await new Promise(resolve => setTimeout(resolve, 2000))
-
+      
       toast({
         title: "Sync Complete",
         description: "Refreshed applications from your linked profiles.",
@@ -321,41 +319,6 @@ export function AppliedApplicationsTracker() {
       </Card>
     )
   }
-
-  // Add Application Dialog
-  const AddApplicationDialog = () => (
-    <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-      <DialogTrigger asChild>
-        <Button variant="outline">Add Application</Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>Add New Application</DialogTitle>
-          <DialogDescription>
-            Fill in the details of the application to track it.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <label htmlFor="title" className="text-right">
-              Title
-            </label>
-            <Input id="title" value="" className="col-span-3" />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <label htmlFor="company" className="text-right">
-              Company
-            </label>
-            <Input id="company" value="" className="col-span-3" />
-          </div>
-          {/* Add more fields as necessary */}
-        </div>
-        {/*<DialogFooter>
-          <Button type="submit">Add Application</Button>
-        </DialogFooter>*/}
-      </DialogContent>
-    </Dialog>
-  );
 
   if (loading) {
     return (
@@ -529,13 +492,6 @@ export function AppliedApplicationsTracker() {
       </Card>
 
       {/* Applications Grid */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 space-y-4 sm:space-y-0">
-          <h2 className="text-xl sm:text-2xl font-bold">Applied Applications</h2>
-          <Button onClick={() => setShowAddDialog(true)} className="bg-green-600 hover:bg-green-700 w-full sm:w-auto">
-            <Plus className="w-4 h-4 mr-2" />
-            Add Application
-          </Button>
-        </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
         {filteredApplications.map((application) => (
           <ApplicationCard key={application.id} application={application} />
@@ -563,7 +519,6 @@ export function AppliedApplicationsTracker() {
           </CardContent>
         </Card>
       )}
-      <AddApplicationDialog />
     </div>
   )
 }
