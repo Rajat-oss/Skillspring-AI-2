@@ -76,6 +76,9 @@ export function FreeResourcesHub() {
   const [selectedResource, setSelectedResource] = useState<FreeResource | null>(null)
   const [showVideoDialog, setShowVideoDialog] = useState(false)
   const [activeTab, setActiveTab] = useState("all")
+  const [searchSuggestions, setSearchSuggestions] = useState<string[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [isUpdatingContent, setIsUpdatingContent] = useState(false)
   const { toast } = useToast()
 
   const categoryIcons: Record<string, any> = {
@@ -94,10 +97,49 @@ export function FreeResourcesHub() {
     'Advanced': 'bg-red-500'
   }
 
-  // Fetch data
+  // Fetch data with debouncing for search
   useEffect(() => {
-    fetchData()
+    const timeoutId = setTimeout(() => {
+      if (searchQuery.length > 2) {
+        fetchRealTimeSearch()
+      } else {
+        fetchData()
+      }
+    }, 300) // 300ms debounce
+
+    return () => clearTimeout(timeoutId)
   }, [searchQuery, selectedCategory, selectedLevel, selectedLanguage])
+
+  const fetchRealTimeSearch = async () => {
+    setLoading(true)
+    try {
+      const token = localStorage.getItem('token')
+      const headers = {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+
+      // Real-time search with auto-suggestions
+      const params = new URLSearchParams()
+      params.append('q', searchQuery)
+      if (selectedCategory) params.append('category', selectedCategory)
+      if (selectedLevel) params.append('level', selectedLevel)
+
+      const searchResponse = await fetch(`/api/learning/free-resources/search?${params}`, { headers })
+      if (searchResponse.ok) {
+        const searchData = await searchResponse.json()
+        setResources(searchData.resources)
+        setSearchSuggestions(searchData.suggestions || [])
+      }
+
+    } catch (error) {
+      console.error('Error in real-time search:', error)
+      // Fallback to regular search
+      fetchData()
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const fetchData = async () => {
     setLoading(true)
@@ -151,6 +193,42 @@ export function FreeResourcesHub() {
       })
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleUpdateContent = async () => {
+    setIsUpdatingContent(true)
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/admin/update-content', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        toast({
+          title: "Content Updated!",
+          description: data.message,
+        })
+        
+        // Refresh data
+        fetchData()
+      } else {
+        throw new Error('Failed to update content')
+      }
+    } catch (error) {
+      console.error('Error updating content:', error)
+      toast({
+        title: "Update Failed",
+        description: "Failed to update content. Please try again.",
+        variant: "destructive"
+      })
+    } finally {
+      setIsUpdatingContent(false)
     }
   }
 
@@ -420,6 +498,23 @@ export function FreeResourcesHub() {
             Access curated free education from top platforms worldwide
           </p>
         </div>
+        <Button
+          onClick={handleUpdateContent}
+          disabled={isUpdatingContent}
+          className="bg-green-600 hover:bg-green-700"
+        >
+          {isUpdatingContent ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+              Updating...
+            </>
+          ) : (
+            <>
+              <Zap className="w-4 h-4 mr-2" />
+              Update Content
+            </>
+          )}
+        </Button>
       </div>
 
       {/* Search and Filters */}
@@ -432,9 +527,32 @@ export function FreeResourcesHub() {
                 <Input
                   placeholder="Search courses, tutorials, topics..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value)
+                    setShowSuggestions(e.target.value.length > 2)
+                  }}
+                  onFocus={() => setShowSuggestions(searchQuery.length > 2 && searchSuggestions.length > 0)}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                   className="pl-10 bg-gray-800 border-gray-600"
                 />
+                
+                {/* Search Suggestions Dropdown */}
+                {showSuggestions && searchSuggestions.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-600 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
+                    {searchSuggestions.map((suggestion, index) => (
+                      <button
+                        key={index}
+                        className="w-full px-4 py-2 text-left hover:bg-gray-700 transition-colors text-sm"
+                        onClick={() => {
+                          setSearchQuery(suggestion)
+                          setShowSuggestions(false)
+                        }}
+                      >
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
             

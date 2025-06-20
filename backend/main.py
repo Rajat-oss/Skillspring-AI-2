@@ -1064,6 +1064,112 @@ async def get_recommended_resources(current_user: User = Depends(get_current_use
     
     return {"recommendations": recommendations}
 
+@app.post("/admin/update-content")
+async def manual_content_update(current_user: User = Depends(get_current_user)):
+    """Manually trigger content update (admin only)"""
+    # For demo purposes, allow any user to trigger update
+    # In production, add admin role check
+    
+    try:
+        from background_tasks import JobScraper
+        scraper = JobScraper()
+        
+        # Update learning content
+        count = await scraper.update_learning_content()
+        
+        return {
+            "status": "success", 
+            "message": f"Content updated successfully. Added {count} new resources.",
+            "updated_count": count
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update content: {str(e)}")
+
+@app.get("/learning/free-resources/search")
+async def search_resources_realtime(
+    q: str,
+    category: Optional[str] = None,
+    level: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
+):
+    """Real-time search with auto-suggestions"""
+    if current_user.role != "individual":
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Search existing resources
+    resources = free_resources_service.search_resources(
+        query=q,
+        category=category or "",
+        level=level or ""
+    )
+    
+    # If we have few results and YouTube API is available, search YouTube
+    if len(resources) < 5:
+        try:
+            from youtube_service import YouTubeService
+            youtube_service = YouTubeService()
+            
+            # Determine category from query if not provided
+            search_category = category or youtube_service.categorize_content(q)
+            
+            # Search YouTube for additional content
+            youtube_results = youtube_service.search_educational_videos(
+                query=q, 
+                category=search_category, 
+                max_results=10
+            )
+            
+            # Add YouTube results to response
+            for video in youtube_results:
+                # Convert tags list to comma-separated string
+                if isinstance(video.get('tags'), list):
+                    video['tags'] = video['tags']
+                else:
+                    video['tags'] = video.get('tags', '').split(',') if video.get('tags') else []
+                
+                video['bookmark_status'] = None
+                video['progress'] = 0
+                
+            resources.extend(youtube_results)
+            
+        except Exception as e:
+            print(f"Error searching YouTube: {e}")
+    
+    return {
+        "resources": resources[:20],  # Limit to 20 results
+        "total": len(resources),
+        "query": q,
+        "suggestions": generate_search_suggestions(q)
+    }
+
+def generate_search_suggestions(query: str) -> List[str]:
+    """Generate search suggestions based on query"""
+    suggestions = []
+    query_lower = query.lower()
+    
+    # Technology suggestions
+    tech_suggestions = {
+        'web': ['web development', 'web design', 'html css', 'javascript'],
+        'react': ['react tutorial', 'react hooks', 'react native', 'react redux'],
+        'python': ['python tutorial', 'python data science', 'python django', 'python flask'],
+        'data': ['data science', 'data analysis', 'data visualization', 'machine learning'],
+        'ai': ['artificial intelligence', 'machine learning', 'deep learning', 'neural networks'],
+        'design': ['ui design', 'ux design', 'graphic design', 'figma tutorial'],
+        'mobile': ['mobile development', 'android development', 'ios development', 'flutter']
+    }
+    
+    for keyword, related in tech_suggestions.items():
+        if keyword in query_lower:
+            suggestions.extend(related)
+    
+    # Remove duplicates and current query
+    suggestions = list(set(suggestions))
+    if query.lower() in suggestions:
+        suggestions.remove(query.lower())
+    
+    return suggestions[:8]
+
 # Health check
 @app.get("/health")
 async def health_check():
