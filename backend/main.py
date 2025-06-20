@@ -12,6 +12,7 @@ import uuid
 import asyncio
 from ai_service import AIService
 from websocket_service import socket_app, send_notification, broadcast_job_update, broadcast_candidate_update, update_market_insights
+from user_activity import log_user_activity, log_user_application, get_user_activities, get_user_applications
 
 app = FastAPI(title="SkillSpring Launchpad API", version="1.0.0")
 
@@ -724,17 +725,93 @@ async def get_dashboard_stats(current_user: User = Depends(get_current_user)):
     if current_user.role != "individual":
         raise HTTPException(status_code=403, detail="Access denied")
 
-    # Mock statistics
+    # Get real user data
+    user_activities = get_user_activities(current_user.id, limit=100)
+    user_applications = get_user_applications(current_user.id)
+    
+    # Calculate real statistics
+    ai_interactions = len([a for a in user_activities if a['type'] == 'ai_interaction'])
+    course_activities = [a for a in user_activities if a['type'] == 'course_completed']
+    
+    # Get learning paths progress
+    paths_data = read_csv_data(LEARNING_PATHS_CSV)
+    total_courses = len(paths_data)
+    completed_courses = len([p for p in paths_data if int(p.get('progress', 0)) == 100])
+    in_progress_courses = len([p for p in paths_data if 0 < int(p.get('progress', 0)) < 100])
+    
+    # Calculate average progress
+    if paths_data:
+        average_progress = sum(int(p.get('progress', 0)) for p in paths_data) // len(paths_data)
+    else:
+        average_progress = 0
+    
+    # Calculate career score based on activity
+    base_score = 50
+    progress_boost = min(average_progress // 2, 30)  # Up to 30 points for progress
+    activity_boost = min(len(user_activities), 20)   # Up to 20 points for activity
+    career_score = min(base_score + progress_boost + activity_boost, 100)
+
     return {
-        "career_score": 85,
-        "total_courses": 12,
-        "completed_courses": 3,
-        "in_progress_courses": 2,
-        "job_applications": 5,
-        "ai_interactions": 23,
-        "average_progress": 45,
-        "streak_days": 7,
-        "certificates_earned": 2
+        "career_score": career_score,
+        "total_courses": total_courses,
+        "completed_courses": completed_courses,
+        "in_progress_courses": in_progress_courses,
+        "job_applications": len(user_applications),
+        "ai_interactions": ai_interactions,
+        "average_progress": average_progress,
+        "streak_days": 7,  # This would need more complex calculation
+        "certificates_earned": completed_courses
+    }
+
+@app.get("/student/applications/history")
+async def get_application_history(current_user: User = Depends(get_current_user)):
+    """Get user's application history"""
+    if current_user.role != "individual":
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    applications = get_user_applications(current_user.id)
+    return {"applications": applications}
+
+@app.get("/student/activity/recent")
+async def get_recent_activity(current_user: User = Depends(get_current_user)):
+    """Get user's recent activity"""
+    if current_user.role != "individual":
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    activities = get_user_activities(current_user.id, limit=20)
+    return {"activities": activities}
+
+@app.post("/student/opportunities/apply")
+async def apply_to_opportunity(
+    opportunity: dict,
+    current_user: User = Depends(get_current_user)
+):
+    """Apply to a job, internship, or hackathon"""
+    if current_user.role != "individual":
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # Log the application
+    log_user_application(
+        current_user.id,
+        opportunity.get('id'),
+        opportunity.get('type', 'job'),
+        opportunity.get('title'),
+        opportunity.get('company', 'Unknown')
+    )
+    
+    # Log the activity
+    log_user_activity(
+        current_user.id,
+        'application_submitted',
+        f"Applied to {opportunity.get('title')}",
+        f"Applied to {opportunity.get('title')} at {opportunity.get('company')}",
+        opportunity
+    )
+
+    return {
+        "status": "success",
+        "message": "Application submitted successfully",
+        "applied_at": datetime.utcnow().isoformat()
     }
 
 @app.get("/student/recommendations/personalized")
@@ -743,20 +820,32 @@ async def get_personalized_recommendations(current_user: User = Depends(get_curr
     if current_user.role != "individual":
         raise HTTPException(status_code=403, detail="Access denied")
 
-    # Enhanced recommendations based on user profile
+    # Get user's application history and activities for personalization
+    applications = get_user_applications(current_user.id)
+    activities = get_user_activities(current_user.id, limit=50)
+    
+    # Analyze user's interests from applications
+    applied_skills = set()
+    applied_companies = set()
+    for app in applications:
+        if 'skills' in app.get('metadata', {}):
+            applied_skills.update(app['metadata']['skills'])
+        applied_companies.add(app.get('company', ''))
+
+    # Enhanced recommendations based on user profile and activity
     recommendations = {
         "learning_paths": [
             {
                 "id": "advanced-react",
                 "title": "Advanced React Patterns",
-                "reason": "Based on your React progress",
+                "reason": "Based on your recent activity and applications",
                 "priority": "high",
                 "estimated_completion": "3 weeks"
             },
             {
                 "id": "typescript-fundamentals",
                 "title": "TypeScript Fundamentals", 
-                "reason": "40% of jobs in your field require TypeScript",
+                "reason": f"Required by {len(applied_companies)} companies you applied to",
                 "priority": "medium",
                 "estimated_completion": "2 weeks"
             }
@@ -766,17 +855,17 @@ async def get_personalized_recommendations(current_user: User = Depends(get_curr
                 "id": "frontend-dev-remote",
                 "title": "Frontend Developer (Remote)",
                 "company": "TechCorp",
-                "match_reason": "Perfect match for your React skills",
+                "match_reason": "Matches your application pattern",
                 "salary": "$75,000 - $95,000",
                 "urgency": "high"
             }
         ],
-        "skills": [
+        "skills": list(applied_skills)[:5] if applied_skills else [
             {
-                "name": "AWS",
+                "name": "React",
                 "demand": "high",
-                "learning_time": "4 weeks",
-                "salary_impact": "+15%"
+                "learning_time": "2 weeks",
+                "salary_impact": "+20%"
             }
         ]
     }

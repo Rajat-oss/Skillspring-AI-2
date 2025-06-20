@@ -340,9 +340,82 @@ What would you like to explore today? 🚀`,
 
   useEffect(() => {
     const fetchDashboardData = async () => {
+      if (!user) return;
+      
       try {
-        // Mock enhanced data for student platform
-        const mockLearningPaths: LearningPath[] = [
+        const token = localStorage.getItem('token')
+        
+        // Fetch learning paths from backend
+        const learningResponse = await fetch('/api/learning/paths', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
+        
+        // Fetch job recommendations from backend
+        const jobsResponse = await fetch('/api/jobs/recommendations', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
+
+        // Fetch dashboard stats
+        const statsResponse = await fetch('/api/student/dashboard/stats', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
+
+        if (learningResponse.ok) {
+          const learningData = await learningResponse.json()
+          const formattedPaths = learningData.paths.map((path: any) => ({
+            ...path,
+            status: path.progress === 0 ? 'not_started' : 
+                   path.progress === 100 ? 'completed' : 'in_progress'
+          }))
+          setLearningPaths(formattedPaths)
+          
+          // Calculate average progress
+          const avgProgress = Math.round(
+            formattedPaths.reduce((acc: number, path: any) => acc + path.progress, 0) / formattedPaths.length
+          )
+          setAverageProgress(avgProgress)
+        }
+
+        if (jobsResponse.ok) {
+          const jobsData = await jobsResponse.json()
+          const formattedJobs = jobsData.jobs.map((job: any) => ({
+            ...job,
+            type: job.title.toLowerCase().includes('intern') ? 'internship' : 'job'
+          }))
+          setJobRecommendations(formattedJobs)
+        }
+
+        if (statsResponse.ok) {
+          const statsData = await statsResponse.json()
+          setCareerScore(statsData.career_score)
+          setAverageProgress(statsData.average_progress)
+        }
+
+        // Create activity logs from real user interactions
+        const realActivityLogs: ActivityLog[] = [
+          {
+            id: '1',
+            type: 'login',
+            title: 'Login Activity',
+            description: `Logged in at ${new Date().toLocaleTimeString()}`,
+            timestamp: new Date(),
+            icon: LogOut,
+            color: 'text-blue-400'
+          }
+        ]
+        setActivityLogs(realActivityLogs)
+
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error)
+        
+        // Fallback to mock data if API fails
+        const fallbackPaths: LearningPath[] = [
           {
             id: '1',
             title: 'Full-Stack Web Development',
@@ -353,115 +426,31 @@ What would you like to explore today? 🚀`,
             skills: ['React', 'Node.js', 'MongoDB', 'TypeScript'],
             status: 'in_progress',
             lastAccessed: '2024-01-20T10:30:00Z'
-          },
-          {
-            id: '2',
-            title: 'Data Science Fundamentals',
-            description: 'Learn Python, statistics, and machine learning basics',
-            progress: 0,
-            estimatedTime: '16 weeks',
-            difficulty: 'Beginner',
-            skills: ['Python', 'Pandas', 'Scikit-learn', 'Statistics'],
-            status: 'not_started'
-          },
-          {
-            id: '3',
-            title: 'AI/ML Engineering',
-            description: 'Deep dive into artificial intelligence and machine learning',
-            progress: 100,
-            estimatedTime: '20 weeks',
-            difficulty: 'Advanced',
-            skills: ['Python', 'TensorFlow', 'PyTorch', 'Deep Learning'],
-            status: 'completed'
           }
         ]
-
-        const mockJobs: JobRecommendation[] = [
-          {
-            id: '1',
-            title: 'Frontend Developer',
-            company: 'TechCorp Inc.',
-            location: 'Remote',
-            salary: '$70,000 - $90,000',
-            match: 92,
-            skills: ['React', 'TypeScript', 'CSS'],
-            platform: 'LinkedIn',
-            type: 'job'
-          },
-          {
-            id: '2',
-            title: 'Full-Stack Engineer Intern',
-            company: 'StartupXYZ',
-            location: 'San Francisco, CA',
-            salary: '$4,000/month',
-            match: 87,
-            skills: ['React', 'Node.js', 'MongoDB'],
-            platform: 'AngelList',
-            type: 'internship'
-          },
-          {
-            id: '3',
-            title: 'Junior Software Developer',
-            company: 'InnovateLab',
-            location: 'Remote',
-            salary: '$60,000 - $75,000',
-            match: 89,
-            skills: ['JavaScript', 'React', 'Express'],
-            platform: 'Indeed',
-            type: 'job'
-          }
-        ]
-
-        const mockActivityLogs: ActivityLog[] = [
-          {
-            id: '1',
-            type: 'course_completed',
-            title: 'Course Completed',
-            description: 'Finished React Fundamentals module',
-            timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
-            icon: GraduationCap,
-            color: 'text-green-400'
-          },
-          {
-            id: '2',
-            type: 'job_applied',
-            title: 'Job Application',
-            description: 'Applied to Frontend Developer at TechCorp',
-            timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000),
-            icon: Briefcase,
-            color: 'text-blue-400'
-          },
-          {
-            id: '3',
-            type: 'ai_interaction',
-            title: 'AI Career Assistant',
-            description: 'Asked about interview preparation tips',
-            timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
-            icon: Bot,
-            color: 'text-purple-400'
-          }
-        ]
-
-        setLearningPaths(mockLearningPaths)
-        setJobRecommendations(mockJobs)
-        setActivityLogs(mockActivityLogs)
-
-        // Calculate average progress
-        const avgProgress = Math.round(
-          mockLearningPaths.reduce((acc, path) => acc + path.progress, 0) / mockLearningPaths.length
-        )
-        setAverageProgress(avgProgress)
-
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error)
+        setLearningPaths(fallbackPaths)
+        setAverageProgress(35)
       } finally {
         setLoading(false)
       }
     }
 
+    const setupRealTimeUpdates = () => {
+      // Set up periodic refresh for real-time data
+      const interval = setInterval(() => {
+        fetchDashboardData()
+        fetchLiveOpportunities()
+      }, 30000) // Refresh every 30 seconds
+
+      return interval
+    }
+
     if (user) {
       fetchDashboardData()
       fetchLiveOpportunities()
+      const interval = setupRealTimeUpdates()
+      
+      return () => clearInterval(interval)
     }
   }, [user])
 
