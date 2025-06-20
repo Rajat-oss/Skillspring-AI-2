@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useEffect } from "react"
@@ -10,7 +11,9 @@ export default function IndividualDashboardPage() {
   const router = useRouter()
 
   useEffect(() => {
-    if (!loading && (!user || user.role !== "individual")) {
+    console.log("IndividualDashboardPage user:", user)
+    console.log("IndividualDashboardPage loading:", loading)
+    if (!loading && !user) {
       router.push("/auth/login")
     }
   }, [user, loading, router])
@@ -26,7 +29,7 @@ export default function IndividualDashboardPage() {
     )
   }
 
-  if (!user || user.role !== "individual") {
+  if (!user) {
     return null
   }
 

@@ -2,8 +2,8 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -11,28 +11,19 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useAuth } from "@/components/auth-provider"
 import { useToast } from "@/hooks/use-toast"
-import { Sparkles, BookOpen, Rocket } from "lucide-react"
+import { Sparkles, BookOpen } from "lucide-react"
 import Link from "next/link"
 
 export default function SignupPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
-  const [role, setRole] = useState<"individual" | "startup">("individual")
   const [profession, setProfession] = useState("")
   const [loading, setLoading] = useState(false)
 
   const router = useRouter()
-  const searchParams = useSearchParams()
   const { signup } = useAuth()
   const { toast } = useToast()
-
-  useEffect(() => {
-    const roleParam = searchParams.get("role")
-    if (roleParam === "individual" || roleParam === "startup") {
-      setRole(roleParam)
-    }
-  }, [searchParams])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -48,12 +39,12 @@ export default function SignupPage() {
 
     setLoading(true)
     try {
-      await signup(email, password, role)
+      await signup(email, password, "individual")
       toast({
         title: "Welcome to SkillSpring!",
         description: "Your account has been created successfully.",
       })
-      router.push(role === "individual" ? "/dashboard/individual" : "/dashboard/startup")
+      router.push("/dashboard/individual")
     } catch (error) {
       toast({
         title: "Error",
@@ -65,30 +56,17 @@ export default function SignupPage() {
     }
   }
 
-  const professions =
-    role === "individual"
-      ? [
-          "Student",
-          "Software Developer",
-          "Designer",
-          "Data Scientist",
-          "Marketing Professional",
-          "Sales Professional",
-          "Content Creator",
-          "Freelancer",
-          "Other",
-        ]
-      : [
-          "Tech Startup",
-          "E-commerce",
-          "SaaS",
-          "Fintech",
-          "Healthcare",
-          "Education",
-          "Marketing Agency",
-          "Consulting",
-          "Other",
-        ]
+  const professions = [
+    "Student",
+    "Software Developer",
+    "Designer",
+    "Data Scientist",
+    "Marketing Professional",
+    "Sales Professional",
+    "Content Creator",
+    "Freelancer",
+    "Other",
+  ]
 
   return (
     <div className="min-h-screen gradient-bg flex items-center justify-center p-4">
@@ -102,27 +80,6 @@ export default function SignupPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <Button
-                type="button"
-                variant={role === "individual" ? "default" : "outline"}
-                onClick={() => setRole("individual")}
-                className={role === "individual" ? "bg-green-600 hover:bg-green-700" : ""}
-              >
-                <BookOpen className="w-4 h-4 mr-2" />
-                Individual
-              </Button>
-              <Button
-                type="button"
-                variant={role === "startup" ? "default" : "outline"}
-                onClick={() => setRole("startup")}
-                className={role === "startup" ? "bg-purple-600 hover:bg-purple-700" : ""}
-              >
-                <Rocket className="w-4 h-4 mr-2" />
-                Startup
-              </Button>
-            </div>
-
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -136,10 +93,10 @@ export default function SignupPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="profession">{role === "individual" ? "Profession" : "Industry"}</Label>
+              <Label htmlFor="profession">Profession</Label>
               <Select value={profession} onValueChange={setProfession}>
                 <SelectTrigger className="bg-gray-800 border-gray-600">
-                  <SelectValue placeholder={`Select your ${role === "individual" ? "profession" : "industry"}`} />
+                  <SelectValue placeholder="Select your profession" />
                 </SelectTrigger>
                 <SelectContent>
                   {professions.map((prof) => (

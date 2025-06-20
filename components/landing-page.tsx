@@ -4,12 +4,10 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Rocket, BookOpen, Users, Zap, ArrowRight, Sparkles, Target, TrendingUp } from "lucide-react"
+import { BookOpen, Zap, ArrowRight, Sparkles, Target, TrendingUp } from "lucide-react"
 import Link from "next/link"
 
 export function LandingPage() {
-  const [selectedRole, setSelectedRole] = useState<"individual" | "startup" | null>(null)
-
   return (
     <div className="min-h-screen gradient-bg">
       {/* Header */}
@@ -36,36 +34,29 @@ export function LandingPage() {
       <section className="py-20 px-4">
         <div className="container mx-auto text-center">
           <Badge className="mb-6 bg-purple-600/20 text-purple-300 border-purple-600/30">
-            AI-Powered Growth Platform
+            AI-Powered Learning Platform
           </Badge>
           <h1 className="text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-green-400 via-blue-500 to-purple-600 bg-clip-text text-transparent">
-            From Skill to Startup
+            Master Your Skills
           </h1>
           <p className="text-xl md:text-2xl text-gray-300 mb-8 max-w-3xl mx-auto">
-            AI-Powered Growth for Everyone. Join the ecosystem where individuals upskill and startups discover talent.
+            AI-Powered Growth for Individuals. Join the platform where you can upskill, get career guidance, and find your dream job.
           </p>
 
-          {/* Role Selection */}
-          <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto mb-12">
-            <Card
-              className={`cursor-pointer transition-all duration-300 border-2 ${
-                selectedRole === "individual"
-                  ? "border-green-500 ai-glow bg-green-950/20"
-                  : "border-gray-700 hover:border-green-500/50 bg-gray-900/50"
-              }`}
-              onClick={() => setSelectedRole("individual")}
-            >
+          {/* Main Call to Action */}
+          <div className="max-w-2xl mx-auto mb-12">
+            <Card className="border-2 border-green-500 ai-glow bg-green-950/20">
               <CardHeader className="text-center">
                 <div className="w-16 h-16 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
                   <BookOpen className="w-8 h-8 text-white" />
                 </div>
-                <CardTitle className="text-2xl">I'm an Individual</CardTitle>
+                <CardTitle className="text-2xl">Start Your Learning Journey</CardTitle>
                 <CardDescription className="text-gray-400">
                   Student, Freelancer, Job Seeker, or Professional looking to upskill
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <ul className="space-y-2 text-sm text-gray-300">
+                <ul className="space-y-2 text-sm text-gray-300 mb-6">
                   <li className="flex items-center">
                     <Target className="w-4 h-4 mr-2 text-green-500" /> Personalized Learning Paths
                   </li>
@@ -76,53 +67,18 @@ export function LandingPage() {
                     <TrendingUp className="w-4 h-4 mr-2 text-green-500" /> Job Matching & Placement
                   </li>
                 </ul>
-              </CardContent>
-            </Card>
-
-            <Card
-              className={`cursor-pointer transition-all duration-300 border-2 ${
-                selectedRole === "startup"
-                  ? "border-purple-500 startup-glow bg-purple-950/20"
-                  : "border-gray-700 hover:border-purple-500/50 bg-gray-900/50"
-              }`}
-              onClick={() => setSelectedRole("startup")}
-            >
-              <CardHeader className="text-center">
-                <div className="w-16 h-16 bg-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Rocket className="w-8 h-8 text-white" />
-                </div>
-                <CardTitle className="text-2xl">I'm a Startup</CardTitle>
-                <CardDescription className="text-gray-400">
-                  Company looking to hire talent and scale operations
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-2 text-sm text-gray-300">
-                  <li className="flex items-center">
-                    <Users className="w-4 h-4 mr-2 text-purple-500" /> AI Talent Discovery
-                  </li>
-                  <li className="flex items-center">
-                    <Zap className="w-4 h-4 mr-2 text-purple-500" /> Smart Candidate Matching
-                  </li>
-                  <li className="flex items-center">
-                    <TrendingUp className="w-4 h-4 mr-2 text-purple-500" /> Business Growth Tools
-                  </li>
-                </ul>
+                <Link href="/auth/signup">
+                  <Button
+                    size="lg"
+                    className="w-full bg-gradient-to-r from-green-600 to-purple-600 hover:from-green-700 hover:to-purple-700 text-white px-8 py-3 text-lg"
+                  >
+                    Get Started
+                    <ArrowRight className="ml-2 w-5 h-5" />
+                  </Button>
+                </Link>
               </CardContent>
             </Card>
           </div>
-
-          {selectedRole && (
-            <Link href={`/auth/signup?role=${selectedRole}`}>
-              <Button
-                size="lg"
-                className="bg-gradient-to-r from-green-600 to-purple-600 hover:from-green-700 hover:to-purple-700 text-white px-8 py-3 text-lg"
-              >
-                Get Started as {selectedRole === "individual" ? "Individual" : "Startup"}
-                <ArrowRight className="ml-2 w-5 h-5" />
-              </Button>
-            </Link>
-          )}
         </div>
       </section>
 
@@ -162,13 +118,13 @@ export function LandingPage() {
             <Card className="bg-gray-800/50 border-gray-700">
               <CardHeader>
                 <CardTitle className="flex items-center text-purple-400">
-                  <Users className="w-6 h-6 mr-2" />
-                  HireScanGPT
+                  <Target className="w-6 h-6 mr-2" />
+                  SkillTracker
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-gray-300">
-                  Helps startups discover talent, filter candidates, and manage the entire hiring process intelligently.
+                  Track your progress, earn certificates, and showcase your achievements to potential employers.
                 </p>
               </CardContent>
             </Card>
@@ -187,11 +143,11 @@ export function LandingPage() {
             </div>
             <div>
               <div className="text-5xl font-bold text-blue-400 mb-2">1M+</div>
-              <p className="text-gray-300">Micro-Startups Enabled</p>
+              <p className="text-gray-300">Jobs Matched</p>
             </div>
             <div>
               <div className="text-5xl font-bold text-purple-400 mb-2">1B+</div>
-              <p className="text-gray-300">Next Generation Builders</p>
+              <p className="text-gray-300">Learning Hours Completed</p>
             </div>
           </div>
         </div>
@@ -200,7 +156,7 @@ export function LandingPage() {
       {/* Footer */}
       <footer className="border-t border-gray-800 py-8 px-4">
         <div className="container mx-auto text-center text-gray-400">
-          <p>&copy; 2024 SkillSpring Launchpad. Empowering the next billion learners and builders.</p>
+          <p>&copy; 2024 SkillSpring Launchpad. Empowering the next generation of learners.</p>
         </div>
       </footer>
     </div>

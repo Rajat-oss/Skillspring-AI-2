@@ -1,3 +1,4 @@
+
 "use client"
 
 import type React from "react"
@@ -14,26 +15,26 @@ import {
 interface User {
   id: string
   email: string
-  role: "individual" | "startup"
+  role: "individual"
   profile?: any
 }
 
 interface AuthContextType {
   user: User | null
-  login: (email: string, password: string, role: "individual" | "startup") => Promise<void>
-  signup: (email: string, password: string, role: "individual" | "startup") => Promise<void>
+  login: (email: string, password: string, role: "individual") => Promise<void>
+  signup: (email: string, password: string, role: "individual") => Promise<void>
   logout: () => void
   loading: boolean
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-function mapFirebaseUserToUser(firebaseUser: FirebaseUser | null, role: "individual" | "startup"): User | null {
+function mapFirebaseUserToUser(firebaseUser: FirebaseUser | null): User | null {
   if (!firebaseUser) return null
   return {
     id: firebaseUser.uid,
     email: firebaseUser.email || "",
-    role,
+    role: "individual",
   }
 }
 
@@ -44,29 +45,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Listen to Firebase auth state changes
     const unsubscribe = onAuthStateChangedListener((firebaseUser) => {
-      // For simplicity, default role to "individual" if not set
-      const currentRole = user?.role || "individual"
-      setUser(mapFirebaseUserToUser(firebaseUser, currentRole))
+      setUser(mapFirebaseUserToUser(firebaseUser))
       setLoading(false)
     })
     return () => unsubscribe()
   }, [])
 
-  const login = async (email: string, password: string, role: "individual" | "startup") => {
+  const login = async (email: string, password: string, role: "individual") => {
     setLoading(true)
     try {
       const userCredential = await firebaseLogin(email, password)
-      setUser(mapFirebaseUserToUser(userCredential.user, role))
+      setUser(mapFirebaseUserToUser(userCredential.user))
     } finally {
       setLoading(false)
     }
   }
 
-  const signup = async (email: string, password: string, role: "individual" | "startup") => {
+  const signup = async (email: string, password: string, role: "individual") => {
     setLoading(true)
     try {
       const userCredential = await firebaseSignup(email, password)
-      setUser(mapFirebaseUserToUser(userCredential.user, role))
+      setUser(mapFirebaseUserToUser(userCredential.user))
     } finally {
       setLoading(false)
     }
@@ -82,7 +81,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  return <AuthContext.Provider value={{ user, login, signup, logout, loading }}>{children}</AuthContext.Provider>
+  const value = {
+    user,
+    login,
+    signup,
+    logout,
+    loading,
+  }
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
 export function useAuth() {
