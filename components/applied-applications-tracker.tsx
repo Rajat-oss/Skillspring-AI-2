@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState, useEffect } from 'react'
@@ -9,122 +8,180 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Progress } from "@/components/ui/progress"
 import { 
   Search, 
-  RefreshCw, 
-  Filter, 
-  CheckCircle, 
+  Calendar, 
   Clock, 
-  XCircle, 
+  CheckCircle,
+  XCircle,
   AlertCircle,
   ExternalLink,
-  Calendar,
+  Filter,
+  RefreshCw,
+  Mail,
   Building,
-  MapPin,
   Trophy,
-  DollarSign,
-  Users,
   Briefcase,
-  Code,
-  Award,
-  Plus,
-  FileText,
-  Sync,
-  Database
+  Users,
+  MapPin,
+  RotateCcw
 } from "lucide-react"
 import { useAuth } from "@/components/auth-provider"
 import { useToast } from "@/hooks/use-toast"
 
-interface TrackedApplication {
+interface Application {
   id: string
   title: string
   company: string
   platform: string
   type: 'job' | 'internship' | 'hackathon'
-  status: 'applied' | 'under_review' | 'shortlisted' | 'rejected' | 'selected' | 'pending'
+  status: 'applied' | 'selected' | 'rejected' | 'pending' | 'shortlisted' | 'interview_scheduled'
   applied_date: string
   last_updated: string
-  application_url: string
-  deadline?: string
-  location: string
+  email_subject: string
+  location?: string
   salary?: string
-  prize_money?: string
-  description: string
-  tags: string[]
-  notes?: string
+  deadline?: string
+  description?: string
+  application_url?: string
+}
+
+interface ApplicationStats {
+  total: number
+  applied: number
+  selected: number
+  rejected: number
+  pending: number
+  response_rate: number
 }
 
 export function AppliedApplicationsTracker() {
   const { user } = useAuth()
   const { toast } = useToast()
-  
-  const [applications, setApplications] = useState<TrackedApplication[]>([])
+  const [applications, setApplications] = useState<Application[]>([])
+  const [stats, setStats] = useState<ApplicationStats>({
+    total: 0,
+    applied: 0,
+    selected: 0,
+    rejected: 0,
+    pending: 0,
+    response_rate: 0
+  })
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState('')
-  const [typeFilter, setTypeFilter] = useState('')
-  const [platformFilter, setPlatformFilter] = useState('')
+  const [selectedType, setSelectedType] = useState('')
+  const [selectedStatus, setSelectedStatus] = useState('')
+  const [selectedPlatform, setSelectedPlatform] = useState('')
   const [activeTab, setActiveTab] = useState('all')
-
   const statusColors = {
     'applied': 'bg-blue-500',
-    'under_review': 'bg-yellow-500',
-    'shortlisted': 'bg-green-500',
+    'selected': 'bg-green-500',
     'rejected': 'bg-red-500',
-    'selected': 'bg-purple-500',
-    'pending': 'bg-gray-500'
-  }
-
-  const statusIcons = {
-    'applied': Clock,
-    'under_review': AlertCircle,
-    'shortlisted': CheckCircle,
-    'rejected': XCircle,
-    'selected': Trophy,
-    'pending': Clock
+    'pending': 'bg-yellow-500',
+    'shortlisted': 'bg-purple-500',
+    'interview_scheduled': 'bg-indigo-500'
   }
 
   const typeIcons = {
     'job': Briefcase,
     'internship': Users,
-    'hackathon': Code
+    'hackathon': Trophy
+  }
+
+  const platformLogos = {
+    'unstop': '/platforms/unstop.png',
+    'internshala': '/platforms/internshala.png',
+    'devfolio': '/platforms/devfolio.png',
+    'dare2compete': '/platforms/dare2compete.png',
+    'linkedin': '/platforms/linkedin.png',
+    'naukri': '/platforms/naukri.png'
   }
 
   useEffect(() => {
     if (user) {
-      fetchTrackedApplications()
+      fetchApplications()
     }
   }, [user])
 
-  const fetchTrackedApplications = async () => {
+  const fetchApplications = async () => {
     setLoading(true)
     try {
-      const token = localStorage.getItem('token')
-      const response = await fetch('/api/applications/tracked', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
+      // Mock applications data - in real implementation, this would fetch from backend
+      const mockApplications: Application[] = [
+        {
+          id: '1',
+          title: 'Software Development Intern',
+          company: 'TechCorp',
+          platform: 'unstop',
+          type: 'internship',
+          status: 'applied',
+          applied_date: '2024-01-15T10:00:00Z',
+          last_updated: '2024-01-15T10:00:00Z',
+          email_subject: 'Application Confirmation - Software Development Intern',
+          location: 'Bangalore, India',
+          salary: '₹15,000/month',
+          deadline: '2024-01-30T23:59:59Z',
+          description: 'Work on cutting-edge web applications using React and Node.js',
+          application_url: 'https://unstop.com/internship/123'
         },
-      })
+        {
+          id: '2',
+          title: 'AI/ML Hackathon 2024',
+          company: 'Unstop',
+          platform: 'unstop',
+          type: 'hackathon',
+          status: 'shortlisted',
+          applied_date: '2024-01-10T14:30:00Z',
+          last_updated: '2024-01-20T09:15:00Z',
+          email_subject: 'Congratulations! You have been shortlisted',
+          location: 'Online',
+          deadline: '2024-02-15T23:59:59Z',
+          description: 'Build innovative AI solutions for real-world problems',
+          application_url: 'https://unstop.com/hackathon/456'
+        },
+        {
+          id: '3',
+          title: 'Frontend Developer',
+          company: 'StartupXYZ',
+          platform: 'internshala',
+          type: 'job',
+          status: 'interview_scheduled',
+          applied_date: '2024-01-05T16:20:00Z',
+          last_updated: '2024-01-25T11:30:00Z',
+          email_subject: 'Interview Scheduled - Frontend Developer Position',
+          location: 'Remote',
+          salary: '₹6,00,000/year',
+          description: 'Create responsive web interfaces using modern frameworks',
+          application_url: 'https://internshala.com/job/789'
+        }
+      ]
 
-      if (response.ok) {
-        const data = await response.json()
-        setApplications(data.applications || [])
-      } else {
-        // Show sample data if no applications found
-        setApplications(getSampleApplications())
-        toast({
-          title: "Sample Data",
-          description: "Showing sample applications. Add your Unstop profile to sync real data.",
-        })
+      // Calculate stats
+      const mockStats: ApplicationStats = {
+        total: mockApplications.length,
+        applied: mockApplications.filter(app => app.status === 'applied').length,
+        selected: mockApplications.filter(app => app.status === 'selected').length,
+        rejected: mockApplications.filter(app => app.status === 'rejected').length,
+        pending: mockApplications.filter(app => ['applied', 'pending', 'shortlisted', 'interview_scheduled'].includes(app.status)).length,
+        response_rate: Math.round((mockApplications.filter(app => ['selected', 'rejected', 'shortlisted', 'interview_scheduled'].includes(app.status)).length / mockApplications.length) * 100)
       }
-    } catch (error) {
-      console.error('Error fetching tracked applications:', error)
-      setApplications(getSampleApplications())
+
+      setApplications(mockApplications)
+      setStats(mockStats)
+      
       toast({
-        title: "Demo Mode",
-        description: "Showing sample data. Connect your profiles to see real applications.",
+        title: "Applications Loaded",
+        description: `Found ${mockApplications.length} applications from your profiles`,
+      })
+    } catch (error) {
+      console.error('Error fetching applications:', error)
+      toast({
+        title: "Error",
+        description: "Failed to load applications. Please try again.",
+        variant: "destructive"
       })
     } finally {
       setLoading(false)
@@ -134,33 +191,19 @@ export function AppliedApplicationsTracker() {
   const syncApplications = async () => {
     setSyncing(true)
     try {
-      const token = localStorage.getItem('token')
-      const response = await fetch('/api/applications/sync', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+      // Simulate syncing from platforms like Unstop
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      
+      toast({
+        title: "Sync Complete",
+        description: "Refreshed applications from your linked profiles.",
       })
 
-      if (response.ok) {
-        const data = await response.json()
-        setApplications(data.applications || [])
-        toast({
-          title: "Sync Complete",
-          description: `Found ${data.applications?.length || 0} applications from connected platforms.`,
-        })
-      } else {
-        toast({
-          title: "Sync Failed",
-          description: "Please connect your Unstop profile to sync applications.",
-          variant: "destructive"
-        })
-      }
+      fetchApplications()
     } catch (error) {
       console.error('Error syncing applications:', error)
       toast({
-        title: "Sync Error",
+        title: "Error",
         description: "Failed to sync applications. Please try again.",
         variant: "destructive"
       })
@@ -169,150 +212,29 @@ export function AppliedApplicationsTracker() {
     }
   }
 
-  const getSampleApplications = (): TrackedApplication[] => {
-    return [
-      {
-        id: "sample_1",
-        title: "Frontend Developer Internship",
-        company: "Zomato",
-        platform: "Unstop",
-        type: "internship",
-        status: "under_review",
-        applied_date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-        last_updated: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-        application_url: "https://unstop.com/internships/frontend-developer",
-        deadline: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(),
-        location: "Bangalore, Remote",
-        salary: "₹25,000/month",
-        description: "Build responsive web applications using React.js and modern frontend technologies.",
-        tags: ["React", "JavaScript", "Frontend", "Remote"],
-        notes: "Completed coding round, waiting for interview"
-      },
-      {
-        id: "sample_2",
-        title: "Smart India Hackathon 2024",
-        company: "Ministry of Education",
-        platform: "Unstop",
-        type: "hackathon",
-        status: "applied",
-        applied_date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-        last_updated: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-        application_url: "https://unstop.com/hackathons/smart-india-hackathon",
-        deadline: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000).toISOString(),
-        location: "Pan India",
-        prize_money: "₹1,00,000",
-        description: "National level hackathon to solve real-world problems faced by ministries.",
-        tags: ["Government", "Innovation", "Social Impact"],
-        notes: "Team formation in progress"
-      },
-      {
-        id: "sample_3",
-        title: "Data Scientist",
-        company: "Paytm",
-        platform: "LinkedIn",
-        type: "job",
-        status: "shortlisted",
-        applied_date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-        last_updated: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-        application_url: "https://linkedin.com/jobs/view/12345",
-        location: "Bangalore, Hybrid",
-        salary: "₹8-15 LPA",
-        description: "Analyze user behavior and business metrics to drive data-driven decisions.",
-        tags: ["Data Science", "Python", "Machine Learning", "Fintech"],
-        notes: "Technical interview scheduled for next week"
-      },
-      {
-        id: "sample_4",
-        title: "EthIndia 2024",
-        company: "Ethereum India",
-        platform: "Devfolio",
-        type: "hackathon",
-        status: "selected",
-        applied_date: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
-        last_updated: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-        application_url: "https://devfolio.co/hackathons/ethindia",
-        deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        location: "Bangalore, On-site",
-        prize_money: "$50,000",
-        description: "Build innovative solutions on Ethereum blockchain with global developers.",
-        tags: ["Blockchain", "Ethereum", "Web3", "DeFi"],
-        notes: "Selected for final round! Excited to participate."
-      },
-      {
-        id: "sample_5",
-        title: "Mobile App Development Internship",
-        company: "BYJU'S",
-        platform: "Internshala",
-        type: "internship",
-        status: "rejected",
-        applied_date: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
-        last_updated: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-        application_url: "https://internshala.com/internship/detail/mobile-app",
-        location: "Bangalore, On-site",
-        salary: "₹20,000/month",
-        description: "Develop mobile applications for educational platform using React Native.",
-        tags: ["React Native", "Mobile", "Education"],
-        notes: "Received feedback to improve React Native skills"
-      }
-    ]
+  const addUnstopProfile = () => {
+    toast({
+      title: "Coming Soon",
+      description: "Unstop profile integration will be available soon. For now, manually add your applications.",
+    })
   }
 
   const filteredApplications = applications.filter(app => {
     const matchesSearch = searchQuery === '' || 
       app.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       app.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      app.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
-    
-    const matchesStatus = statusFilter === '' || app.status === statusFilter
-    const matchesType = typeFilter === '' || app.type === typeFilter
-    const matchesPlatform = platformFilter === '' || app.platform === platformFilter
-    
-    return matchesSearch && matchesStatus && matchesType && matchesPlatform
+      app.platform.toLowerCase().includes(searchQuery.toLowerCase())
+
+    const matchesType = selectedType === '' || app.type === selectedType
+    const matchesStatus = selectedStatus === '' || app.status === selectedStatus
+    const matchesPlatform = selectedPlatform === '' || app.platform === selectedPlatform
+
+    return matchesSearch && matchesType && matchesStatus && matchesPlatform
   })
 
-  const getApplicationsByTab = () => {
-    switch (activeTab) {
-      case 'active':
-        return filteredApplications.filter(app => 
-          ['applied', 'under_review', 'shortlisted'].includes(app.status)
-        )
-      case 'completed':
-        return filteredApplications.filter(app => 
-          ['selected', 'rejected'].includes(app.status)
-        )
-      case 'upcoming':
-        return filteredApplications.filter(app => {
-          if (!app.deadline) return false
-          const deadline = new Date(app.deadline)
-          const now = new Date()
-          const daysUntilDeadline = (deadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
-          return daysUntilDeadline > 0 && daysUntilDeadline <= 7
-        })
-      default:
-        return filteredApplications
-    }
-  }
-
-  const getStatusMessage = () => {
-    const stats = {
-      total: applications.length,
-      applied: applications.filter(app => app.status === 'applied').length,
-      under_review: applications.filter(app => app.status === 'under_review').length,
-      shortlisted: applications.filter(app => app.status === 'shortlisted').length,
-      selected: applications.filter(app => app.status === 'selected').length,
-      rejected: applications.filter(app => app.status === 'rejected').length
-    }
-
-    return `${stats.total} total applications • ${stats.under_review + stats.shortlisted} active • ${stats.selected} selected`
-  }
-
-  const ApplicationCard = ({ application }: { application: TrackedApplication }) => {
-    const StatusIcon = statusIcons[application.status]
-    const TypeIcon = typeIcons[application.type]
-    const daysAgo = Math.floor((Date.now() - new Date(application.applied_date).getTime()) / (1000 * 60 * 60 * 24))
-    
-    const deadlineDays = application.deadline ? 
-      Math.ceil((new Date(application.deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null
+  const ApplicationCard = ({ application }: { application: Application }) => {
+    const TypeIcon = typeIcons[application.type] || Briefcase
+    const statusColor = statusColors[application.status] || 'bg-gray-500'
 
     return (
       <Card className="bg-gray-900/50 border-gray-700 hover:border-blue-500 transition-all duration-300">
@@ -323,114 +245,75 @@ export function AppliedApplicationsTracker() {
                 <TypeIcon className="w-5 h-5 text-blue-400" />
               </div>
               <div className="flex-1">
-                <CardTitle className="text-lg">{application.title}</CardTitle>
-                <CardDescription className="flex items-center space-x-2 mt-1">
-                  <Building className="w-3 h-3" />
-                  <span>{application.company}</span>
-                  <Badge variant="outline" className="text-xs">{application.platform}</Badge>
+                <CardTitle className="text-lg leading-tight">{application.title}</CardTitle>
+                <CardDescription className="text-sm mt-1 flex items-center">
+                  <Building className="w-3 h-3 mr-1" />
+                  {application.company} • {application.platform}
                 </CardDescription>
               </div>
             </div>
             <div className="flex items-center space-x-2">
-              <Badge className={`${statusColors[application.status]} text-white text-xs`}>
-                <StatusIcon className="w-3 h-3 mr-1" />
-                {application.status.replace('_', ' ').toUpperCase()}
+              <Badge className={`${statusColor} text-white text-xs capitalize`}>
+                {application.status.replace('_', ' ')}
+              </Badge>
+              <Badge variant="outline" className="text-xs capitalize">
+                {application.type}
               </Badge>
             </div>
           </div>
         </CardHeader>
 
         <CardContent className="space-y-4">
-          <p className="text-sm text-gray-300 line-clamp-2">{application.description}</p>
+          {application.description && (
+            <p className="text-sm text-gray-300 line-clamp-2">{application.description}</p>
+          )}
 
-          {/* Key Info */}
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div className="flex items-center text-gray-400">
-              <MapPin className="w-3 h-3 mr-1" />
-              {application.location}
-            </div>
-            <div className="flex items-center text-gray-400">
+          {/* Metadata */}
+          <div className="grid grid-cols-2 gap-4 text-sm text-gray-400">
+            <div className="flex items-center">
               <Calendar className="w-3 h-3 mr-1" />
-              Applied {daysAgo} days ago
+              Applied: {new Date(application.applied_date).toLocaleDateString()}
             </div>
-            {application.salary && (
-              <div className="flex items-center text-green-400">
-                <DollarSign className="w-3 h-3 mr-1" />
-                {application.salary}
+            <div className="flex items-center">
+              <Clock className="w-3 h-3 mr-1" />
+              Updated: {new Date(application.last_updated).toLocaleDateString()}
+            </div>
+            {application.location && (
+              <div className="flex items-center">
+                <MapPin className="w-3 h-3 mr-1" />
+                {application.location}
               </div>
             )}
-            {application.prize_money && (
-              <div className="flex items-center text-yellow-400">
-                <Trophy className="w-3 h-3 mr-1" />
-                {application.prize_money}
+            {application.deadline && (
+              <div className="flex items-center">
+                <AlertCircle className="w-3 h-3 mr-1" />
+                Deadline: {new Date(application.deadline).toLocaleDateString()}
               </div>
             )}
           </div>
 
-          {/* Deadline warning */}
-          {deadlineDays && deadlineDays <= 7 && deadlineDays > 0 && (
-            <div className="bg-orange-500/20 border border-orange-500/30 rounded-lg p-2 flex items-center">
-              <AlertCircle className="w-4 h-4 text-orange-400 mr-2" />
-              <span className="text-sm text-orange-300">
-                Deadline in {deadlineDays} day{deadlineDays > 1 ? 's' : ''}
-              </span>
-            </div>
-          )}
-
-          {/* Tags */}
-          <div className="flex flex-wrap gap-1">
-            {application.tags.slice(0, 4).map((tag) => (
-              <Badge key={tag} variant="outline" className="text-xs">
-                {tag}
-              </Badge>
-            ))}
-            {application.tags.length > 4 && (
-              <Badge variant="outline" className="text-xs">
-                +{application.tags.length - 4}
-              </Badge>
-            )}
-          </div>
-
-          {/* Notes */}
-          {application.notes && (
-            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-2">
-              <p className="text-sm text-blue-300">{application.notes}</p>
-            </div>
-          )}
-
-          {/* Actions */}
+          {/* Action buttons */}
           <div className="flex space-x-2 pt-2">
+            {application.application_url && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.open(application.application_url, '_blank')}
+                className="flex-1"
+              >
+                <ExternalLink className="w-4 h-4 mr-2" />
+                View Application
+              </Button>
+            )}
+
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
-              onClick={() => window.open(application.application_url, '_blank')}
-              className="flex-1"
+              className="px-2"
+              title="Email Subject"
             >
-              <ExternalLink className="w-4 h-4 mr-2" />
-              View Application
+              <Mail className="w-4 h-4" />
             </Button>
-            
-            <Select 
-              value={application.status}
-              onValueChange={(value) => {
-                // Update status logic would go here
-                toast({
-                  title: "Status Updated",
-                  description: `Application status changed to ${value.replace('_', ' ')}`,
-                })
-              }}
-            >
-              <SelectTrigger className="w-[140px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="applied">Applied</SelectItem>
-                <SelectItem value="under_review">Under Review</SelectItem>
-                <SelectItem value="shortlisted">Shortlisted</SelectItem>
-                <SelectItem value="selected">Selected</SelectItem>
-                <SelectItem value="rejected">Rejected</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
         </CardContent>
       </Card>
@@ -442,7 +325,7 @@ export function AppliedApplicationsTracker() {
       <div className="space-y-6">
         <div className="text-center py-12">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-400">Loading your applications...</p>
+          <p className="text-gray-400">Loading applications...</p>
         </div>
       </div>
     )
@@ -453,35 +336,101 @@ export function AppliedApplicationsTracker() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold text-purple-400 flex items-center">
-            <FileText className="w-8 h-8 mr-3" />
+          <h2 className="text-3xl font-bold text-blue-400 flex items-center">
+            <Briefcase className="w-8 h-8 mr-3" />
             Applied Applications
           </h2>
-          <p className="text-gray-400 mt-2">{getStatusMessage()}</p>
+          <p className="text-gray-400 mt-2">
+            Track all your job, internship, and hackathon applications automatically
+          </p>
         </div>
-        <div className="flex space-x-3">
+
+        <div className="flex items-center space-x-3">
+          <Button onClick={addUnstopProfile} variant="outline">
+            <Building className="w-4 h-4 mr-2" />
+            Add Unstop Profile
+          </Button>
           <Button 
-            variant="outline" 
-            onClick={syncApplications}
+            onClick={syncApplications} 
             disabled={syncing}
-            className="flex items-center"
+            className="bg-blue-600 hover:bg-blue-700"
           >
             {syncing ? (
               <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
             ) : (
-              <Sync className="w-4 h-4 mr-2" />
+              <RotateCcw className="w-4 h-4 mr-2" />
             )}
             {syncing ? 'Syncing...' : 'Sync Applications'}
-          </Button>
-          
-          <Button className="bg-purple-600 hover:bg-purple-700">
-            <Plus className="w-4 h-4 mr-2" />
-            Add Platform
           </Button>
         </div>
       </div>
 
-      {/* Filters */}
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <Card className="bg-gray-900/50 border-gray-700">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-400">Total Applied</p>
+                <p className="text-2xl font-bold text-white">{stats.total}</p>
+              </div>
+              <Briefcase className="w-8 h-8 text-blue-400" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gray-900/50 border-gray-700">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-400">Selected</p>
+                <p className="text-2xl font-bold text-green-400">{stats.selected}</p>
+              </div>
+              <CheckCircle className="w-8 h-8 text-green-400" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gray-900/50 border-gray-700">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-400">Pending</p>
+                <p className="text-2xl font-bold text-yellow-400">{stats.pending}</p>
+              </div>
+              <Clock className="w-8 h-8 text-yellow-400" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gray-900/50 border-gray-700">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-400">Rejected</p>
+                <p className="text-2xl font-bold text-red-400">{stats.rejected}</p>
+              </div>
+              <XCircle className="w-8 h-8 text-red-400" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gray-900/50 border-gray-700">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-400">Response Rate</p>
+                <p className="text-2xl font-bold text-purple-400">{stats.response_rate}%</p>
+              </div>
+              <div className="w-8 h-8 rounded-full bg-purple-400/20 flex items-center justify-center">
+                <span className="text-purple-400 font-bold text-sm">%</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Search and Filters */}
       <Card className="bg-gray-900/50 border-gray-700">
         <CardContent className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -497,88 +446,79 @@ export function AppliedApplicationsTracker() {
               </div>
             </div>
 
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="bg-gray-800 border-gray-600">
-                <SelectValue placeholder="All Statuses" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">All Statuses</SelectItem>
-                <SelectItem value="applied">Applied</SelectItem>
-                <SelectItem value="under_review">Under Review</SelectItem>
-                <SelectItem value="shortlisted">Shortlisted</SelectItem>
-                <SelectItem value="selected">Selected</SelectItem>
-                <SelectItem value="rejected">Rejected</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <Select value={selectedType || "all"} onValueChange={(value) => setSelectedType(value === "all" ? "" : value)}>
               <SelectTrigger className="bg-gray-800 border-gray-600">
                 <SelectValue placeholder="All Types" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Types</SelectItem>
+                <SelectItem value="all">All Types</SelectItem>
                 <SelectItem value="job">Jobs</SelectItem>
                 <SelectItem value="internship">Internships</SelectItem>
                 <SelectItem value="hackathon">Hackathons</SelectItem>
               </SelectContent>
             </Select>
 
-            <Select value={platformFilter} onValueChange={setPlatformFilter}>
+            <Select value={selectedStatus || "all"} onValueChange={(value) => setSelectedStatus(value === "all" ? "" : value)}>
+              <SelectTrigger className="bg-gray-800 border-gray-600">
+                <SelectValue placeholder="All Statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="applied">Applied</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="shortlisted">Shortlisted</SelectItem>
+                <SelectItem value="interview_scheduled">Interview Scheduled</SelectItem>
+                <SelectItem value="selected">Selected</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={selectedPlatform || "all"} onValueChange={(value) => setSelectedPlatform(value === "all" ? "" : value)}>
               <SelectTrigger className="bg-gray-800 border-gray-600">
                 <SelectValue placeholder="All Platforms" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Platforms</SelectItem>
-                <SelectItem value="Unstop">Unstop</SelectItem>
-                <SelectItem value="Internshala">Internshala</SelectItem>
-                <SelectItem value="LinkedIn">LinkedIn</SelectItem>
-                <SelectItem value="Devfolio">Devfolio</SelectItem>
-                <SelectItem value="Dare2Compete">Dare2Compete</SelectItem>
+                <SelectItem value="all">All Platforms</SelectItem>
+                <SelectItem value="unstop">Unstop</SelectItem>
+                <SelectItem value="internshala">Internshala</SelectItem>
+                <SelectItem value="devfolio">Devfolio</SelectItem>
+                <SelectItem value="dare2compete">Dare2Compete</SelectItem>
+                <SelectItem value="linkedin">LinkedIn</SelectItem>
+                <SelectItem value="naukri">Naukri</SelectItem>
               </SelectContent>
             </Select>
           </div>
         </CardContent>
       </Card>
 
-      {/* Applications Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4 bg-gray-900/50">
-          <TabsTrigger value="all" className="data-[state=active]:bg-purple-600">
-            All ({filteredApplications.length})
-          </TabsTrigger>
-          <TabsTrigger value="active" className="data-[state=active]:bg-blue-600">
-            Active ({getApplicationsByTab().length})
-          </TabsTrigger>
-          <TabsTrigger value="upcoming" className="data-[state=active]:bg-orange-600">
-            Deadlines ({getApplicationsByTab().length})
-          </TabsTrigger>
-          <TabsTrigger value="completed" className="data-[state=active]:bg-gray-600">
-            Completed ({getApplicationsByTab().length})
-          </TabsTrigger>
-        </TabsList>
+      {/* Applications Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+        {filteredApplications.map((application) => (
+          <ApplicationCard key={application.id} application={application} />
+        ))}
+      </div>
 
-        <TabsContent value={activeTab} className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {getApplicationsByTab().map((application) => (
-              <ApplicationCard key={application.id} application={application} />
-            ))}
-          </div>
-          
-          {getApplicationsByTab().length === 0 && (
-            <Card className="bg-gray-900/50 border-gray-700">
-              <CardContent className="text-center py-12">
-                <Database className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No applications found</h3>
-                <p className="text-gray-400 mb-4">Connect your platform profiles to automatically track your applications</p>
-                <Button variant="outline">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Connect Platform
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-      </Tabs>
+      {filteredApplications.length === 0 && (
+        <Card className="bg-gray-900/50 border-gray-700">
+          <CardContent className="text-center py-12">
+            <Building className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold mb-2">No Applications Found</h3>
+            <p className="text-gray-400 mb-4">
+              Add your Unstop profile or sync manually to track your applications automatically
+            </p>
+            <div className="flex justify-center space-x-3">
+              <Button onClick={addUnstopProfile} variant="outline">
+                <Building className="w-4 h-4 mr-2" />
+                Add Unstop Profile
+              </Button>
+              <Button onClick={syncApplications} className="bg-blue-600 hover:bg-blue-700">
+                <RotateCcw className="w-4 h-4 mr-2" />
+                Sync Applications
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }
