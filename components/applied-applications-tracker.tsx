@@ -447,24 +447,24 @@ export function AppliedApplicationsTracker() {
               </div>
             </div>
 
-            <Select value={selectedType} onValueChange={setSelectedType}>
+            <Select value={selectedType || "all"} onValueChange={(value) => setSelectedType(value === "all" ? "" : value)}>
               <SelectTrigger className="bg-gray-800 border-gray-600">
                 <SelectValue placeholder="All Types" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Types</SelectItem>
+                <SelectItem value="all">All Types</SelectItem>
                 <SelectItem value="job">Jobs</SelectItem>
                 <SelectItem value="internship">Internships</SelectItem>
                 <SelectItem value="hackathon">Hackathons</SelectItem>
               </SelectContent>
             </Select>
 
-            <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+            <Select value={selectedStatus || "all"} onValueChange={(value) => setSelectedStatus(value === "all" ? "" : value)}>
               <SelectTrigger className="bg-gray-800 border-gray-600">
                 <SelectValue placeholder="All Statuses" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Statuses</SelectItem>
+                <SelectItem value="all">All Statuses</SelectItem>
                 <SelectItem value="applied">Applied</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="shortlisted">Shortlisted</SelectItem>
@@ -474,12 +474,12 @@ export function AppliedApplicationsTracker() {
               </SelectContent>
             </Select>
 
-            <Select value={selectedPlatform} onValueChange={setSelectedPlatform}>
+            <Select value={selectedPlatform || "all"} onValueChange={(value) => setSelectedPlatform(value === "all" ? "" : value)}>
               <SelectTrigger className="bg-gray-800 border-gray-600">
                 <SelectValue placeholder="All Platforms" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Platforms</SelectItem>
+                <SelectItem value="all">All Platforms</SelectItem>
                 <SelectItem value="unstop">Unstop</SelectItem>
                 <SelectItem value="internshala">Internshala</SelectItem>
                 <SelectItem value="devfolio">Devfolio</SelectItem>

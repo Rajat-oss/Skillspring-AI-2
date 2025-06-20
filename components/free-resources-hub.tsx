@@ -37,8 +37,7 @@ import {
   Smartphone,
   BookmarkCheck,
   BookmarkPlus,
-  SlidersHorizontal
-} from "lucide-react"
+  } from "lucide-react"
 import { useAuth } from "@/components/auth-provider"
 import { useToast } from "@/hooks/use-toast"
 
@@ -631,12 +630,14 @@ export function FreeResourcesHub() {
           {isBookmarked && (
             <div className="space-y-2">
               <label className="text-sm text-gray-400">Update Progress:</label>
-              <SlidersHorizontal
-                value={[progress]}
-                onValueChange={(value) => updateProgress(resource.id, value[0])}
-                max={100}
-                step={5}
-                className="w-full"
+              <input
+                type="range"
+                min="0"
+                max="100"
+                step="5"
+                value={progress}
+                onChange={(e) => updateProgress(resource.id, parseInt(e.target.value))}
+                className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer slider"
               />
             </div>
           )}
