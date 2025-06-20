@@ -1,42 +1,37 @@
-
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Progress } from "@/components/ui/progress"
-import { Slider } from "@/components/ui/slider"
-import { useToast } from "@/hooks/use-toast"
+import { AspectRatio } from "@/components/ui/aspect-ratio"
 import { 
   Search, 
-  Filter, 
-  BookmarkPlus, 
-  BookmarkCheck, 
+  BookOpen, 
   Play, 
-  ExternalLink, 
-  Star, 
   Clock, 
-  Users, 
-  Globe,
-  TrendingUp,
+  Star, 
+  Bookmark, 
   CheckCircle,
-  PlayCircle,
-  Bookmark,
-  Monitor,
-  Zap,
-  Brain,
-  Shield,
-  Palette,
-  Smartphone,
-  Database,
-  Sparkles
+  ExternalLink,
+  Filter,
+  Sparkles,
+  Youtube,
+  Globe,
+  Award,
+  Plus,
+  FolderPlus,
+  X,
+  Maximize
 } from "lucide-react"
+import { useAuth } from "@/components/auth-provider"
+import { useToast } from "@/hooks/use-toast"
 
 interface FreeResource {
   id: string
@@ -64,22 +59,25 @@ interface Filters {
 }
 
 export function FreeResourcesHub() {
-  const [resources, setResources] = useState<FreeResource[]>([])
-  const [bookmarks, setBookmarks] = useState<FreeResource[]>([])
-  const [recommendations, setRecommendations] = useState<FreeResource[]>([])
-  const [filters, setFilters] = useState<Filters>({ categories: [], levels: [], languages: [] })
-  const [loading, setLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [selectedCategory, setSelectedCategory] = useState("")
-  const [selectedLevel, setSelectedLevel] = useState("")
-  const [selectedLanguage, setSelectedLanguage] = useState("")
-  const [selectedResource, setSelectedResource] = useState<FreeResource | null>(null)
-  const [showVideoDialog, setShowVideoDialog] = useState(false)
-  const [activeTab, setActiveTab] = useState("all")
-  const [searchSuggestions, setSearchSuggestions] = useState<string[]>([])
-  const [showSuggestions, setShowSuggestions] = useState(false)
-  const [isUpdatingContent, setIsUpdatingContent] = useState(false)
+  const { user } = useAuth()
   const { toast } = useToast()
+  const [resources, setResources] = useState<FreeResource[]>([])
+  const [categories, setCategories] = useState<string[]>([])
+  const [levels, setLevels] = useState<string[]>([])
+  const [languages, setLanguages] = useState<string[]>([])
+  const [bookmarks, setBookmarks] = useState<FreeResource[]>([])
+  const [loading, setLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState('')
+  const [selectedLevel, setSelectedLevel] = useState('')
+  const [selectedLanguage, setSelectedLanguage] = useState('')
+  const [activeTab, setActiveTab] = useState('all')
+  const [recommendations, setRecommendations] = useState<FreeResource[]>([])
+  const [selectedResource, setSelectedResource] = useState<FreeResource | null>(null)
+  const [showVideoPlayer, setShowVideoPlayer] = useState(false)
+  const [currentVideo, setCurrentVideo] = useState<FreeResource | null>(null)
+  const [learningFolders, setLearningFolders] = useState<any[]>([])
+  const [showAddToPath, setShowAddToPath] = useState<FreeResource | null>(null)
 
   const categoryIcons: Record<string, any> = {
     'Web Development': Monitor,
@@ -129,7 +127,6 @@ export function FreeResourcesHub() {
       if (searchResponse.ok) {
         const searchData = await searchResponse.json()
         setResources(searchData.resources)
-        setSearchSuggestions(searchData.suggestions || [])
       }
 
     } catch (error) {
@@ -154,7 +151,9 @@ export function FreeResourcesHub() {
       const filtersResponse = await fetch('/api/learning/free-resources/categories', { headers })
       if (filtersResponse.ok) {
         const filtersData = await filtersResponse.json()
-        setFilters(filtersData)
+        setCategories(filtersData.categories)
+        setLevels(filtersData.levels)
+        setLanguages(filtersData.languages)
       }
 
       // Fetch resources with current filters
@@ -196,39 +195,129 @@ export function FreeResourcesHub() {
     }
   }
 
-  const handleUpdateContent = async () => {
-    setIsUpdatingContent(true)
+  const fetchCategories = async () => {
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch('/api/admin/update-content', {
-        method: 'POST',
+      const response = await fetch('/api/learning/free-resources/categories', {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+        },
       })
 
       if (response.ok) {
         const data = await response.json()
-        toast({
-          title: "Content Updated!",
-          description: data.message,
-        })
-        
-        // Refresh data
-        fetchData()
-      } else {
-        throw new Error('Failed to update content')
+        setCategories(data.categories)
+        setLevels(data.levels)
+        setLanguages(data.languages)
       }
     } catch (error) {
-      console.error('Error updating content:', error)
-      toast({
-        title: "Update Failed",
-        description: "Failed to update content. Please try again.",
-        variant: "destructive"
+      console.error('Error fetching categories:', error)
+    }
+  }
+
+  const fetchResources = async () => {
+    try {
+      setLoading(true)
+      const token = localStorage.getItem('token')
+      const params = new URLSearchParams()
+      if (searchQuery) params.append('search', searchQuery)
+      if (selectedCategory) params.append('category', selectedCategory)
+      if (selectedLevel) params.append('level', selectedLevel)
+      if (selectedLanguage) params.append('language', selectedLanguage)
+
+      const response = await fetch(`/api/learning/free-resources?${params}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
       })
+
+      if (response.ok) {
+        const data = await response.json()
+        setResources(data.resources)
+      }
+    } catch (error) {
+      console.error('Error fetching resources:', error)
     } finally {
-      setIsUpdatingContent(false)
+      setLoading(false)
+    }
+  }
+
+  const fetchBookmarks = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/learning/free-resources/bookmarks', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setBookmarks(data.bookmarks)
+      }
+    } catch (error) {
+      console.error('Error fetching bookmarks:', error)
+    }
+  }
+
+  const fetchRecommendations = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/learning/free-resources/recommendations', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setRecommendations(data.recommendations)
+      }
+    } catch (error) {
+      console.error('Error fetching recommendations:', error)
+    }
+  }
+
+  const performSearch = async () => {
+    try {
+      setLoading(true)
+      const token = localStorage.getItem('token')
+      const params = new URLSearchParams()
+      if (searchQuery) params.append('search', searchQuery)
+      if (selectedCategory) params.append('category', selectedCategory)
+      if (selectedLevel) params.append('level', selectedLevel)
+      if (selectedLanguage) params.append('language', selectedLanguage)
+
+      const response = await fetch(`/api/learning/free-resources?${params}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setResources(data.resources)
+      }
+    } catch (error) {
+      console.error('Error performing search:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const updateProgress = async (resourceId: string, progress: number) => {
+    try {
+      const token = localStorage.getItem('token')
+      await fetch(`/api/learning/free-resources/${resourceId}/progress`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ progress }),
+      })
+    } catch (error) {
+      console.error('Error updating progress:', error)
     }
   }
 
@@ -239,19 +328,20 @@ export function FreeResourcesHub() {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({ status })
       })
 
       if (response.ok) {
         toast({
-          title: "Success",
-          description: `Resource ${status} successfully!`
+          title: "Bookmarked!",
+          description: "Resource saved to your bookmarks",
         })
-        
-        // Refresh data to update bookmark status
-        fetchData()
+
+        // Refresh resources to show updated bookmark status
+        fetchResources()
+        fetchBookmarks()
       }
     } catch (error) {
       console.error('Error bookmarking resource:', error)
@@ -263,42 +353,105 @@ export function FreeResourcesHub() {
     }
   }
 
-  const handleProgressUpdate = async (resourceId: string, progress: number) => {
+  const handlePlayVideo = (resource: FreeResource) => {
+    if (resource.embed_url) {
+      setCurrentVideo(resource)
+      setShowVideoPlayer(true)
+
+      // Track learning activity
+      updateProgress(resource.id, 10) // Start with 10% when video is opened
+    } else {
+      // Open in new tab if no embed URL
+      window.open(resource.url, '_blank')
+    }
+  }
+
+  const fetchLearningFolders = async () => {
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch(`/api/learning/free-resources/${resourceId}/progress`, {
+      const response = await fetch('/api/learning/folders', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setLearningFolders(data.folders)
+      }
+    } catch (error) {
+      console.error('Error fetching learning folders:', error)
+    }
+  }
+
+  const handleAddToLearningPath = async (resource: FreeResource, folderId: string) => {
+    try {
+      const token = localStorage.getItem('token')
+
+      // Create a simple learning item from the resource
+      const learningItem = {
+        title: `Study: ${resource.title}`,
+        description: resource.description,
+        resources: [resource.url],
+        estimated_hours: 2
+      }
+
+      const response = await fetch('/api/learning/add-resource-to-folder', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ progress })
+        body: JSON.stringify({
+          folder_id: folderId,
+          item: learningItem
+        })
       })
 
       if (response.ok) {
         toast({
-          title: "Progress Updated",
-          description: `Progress set to ${progress}%`
+          title: "Added to Learning Path!",
+          description: `${resource.title} added to your learning path`,
         })
-        
-        // Refresh data
-        fetchData()
+        setShowAddToPath(null)
       }
     } catch (error) {
-      console.error('Error updating progress:', error)
+      console.error('Error adding to learning path:', error)
       toast({
         title: "Error",
-        description: "Failed to update progress",
+        description: "Failed to add to learning path",
         variant: "destructive"
       })
     }
   }
 
+  useEffect(() => {
+    if (user) {
+      fetchCategories()
+      fetchResources()
+      fetchBookmarks()
+      fetchRecommendations()
+      fetchLearningFolders()
+    }
+  }, [user])
+
+  useEffect(() => {
+    const delayedSearch = setTimeout(() => {
+      if (searchQuery || selectedCategory || selectedLevel || selectedLanguage) {
+        performSearch()
+      } else {
+        fetchResources()
+      }
+    }, 500)
+
+    return () => clearTimeout(delayedSearch)
+  }, [searchQuery, selectedCategory, selectedLevel, selectedLanguage])
+
   const clearFilters = () => {
-    setSearchQuery("")
-    setSelectedCategory("")
-    setSelectedLevel("")
-    setSelectedLanguage("")
+    setSearchQuery('')
+    setSelectedCategory('')
+    setSelectedLevel('')
+    setSelectedLanguage('')
   }
 
   const ResourceCard = ({ resource, showProgress = false }: { resource: FreeResource, showProgress?: boolean }) => {
@@ -338,7 +491,7 @@ export function FreeResourcesHub() {
             </div>
           </div>
         </CardHeader>
-        
+
         <CardContent className="space-y-4">
           {/* Thumbnail */}
           {resource.thumbnail && (
@@ -370,7 +523,7 @@ export function FreeResourcesHub() {
           )}
 
           <p className="text-sm text-gray-300 line-clamp-3">{resource.description}</p>
-          
+
           {/* Progress bar for bookmarked items */}
           {showProgress && progress > 0 && (
             <div className="space-y-2">
@@ -417,28 +570,36 @@ export function FreeResourcesHub() {
           {/* Action buttons */}
           <div className="flex space-x-2 pt-2">
             {resource.embed_url ? (
-              <Button
-                size="sm"
-                className="flex-1 bg-blue-600 hover:bg-blue-700"
-                onClick={() => {
-                  setSelectedResource(resource)
-                  setShowVideoDialog(true)
-                }}
-              >
-                <PlayCircle className="w-4 h-4 mr-2" />
-                Learn Here
-              </Button>
-            ) : (
-              <Button
-                size="sm"
-                className="flex-1 bg-blue-600 hover:bg-blue-700"
-                onClick={() => window.open(resource.url, '_blank')}
-              >
-                <ExternalLink className="w-4 h-4 mr-2" />
-                Visit Site
-              </Button>
-            )}
-            
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handlePlayVideo(resource)}
+                          className="flex-1"
+                        >
+                          <Play className="w-4 h-4 mr-2" />
+                          Watch
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => window.open(resource.url, '_blank')}
+                          className="flex-1"
+                        >
+                          <ExternalLink className="w-4 h-4 mr-2" />
+                          Open
+                        </Button>
+                      )}
+
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowAddToPath(resource)}
+                        className="px-2"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </Button>
+
             {isBookmarked && (
               <Select 
                 value={resource.bookmark_status || 'bookmarked'}
@@ -462,7 +623,7 @@ export function FreeResourcesHub() {
               <label className="text-sm text-gray-400">Update Progress:</label>
               <Slider
                 value={[progress]}
-                onValueChange={(value) => handleProgressUpdate(resource.id, value[0])}
+                onValueChange={(value) => updateProgress(resource.id, value[0])}
                 max={100}
                 step={5}
                 className="w-full"
@@ -498,23 +659,6 @@ export function FreeResourcesHub() {
             Access curated free education from top platforms worldwide
           </p>
         </div>
-        <Button
-          onClick={handleUpdateContent}
-          disabled={isUpdatingContent}
-          className="bg-green-600 hover:bg-green-700"
-        >
-          {isUpdatingContent ? (
-            <>
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-              Updating...
-            </>
-          ) : (
-            <>
-              <Zap className="w-4 h-4 mr-2" />
-              Update Content
-            </>
-          )}
-        </Button>
       </div>
 
       {/* Search and Filters */}
@@ -527,42 +671,19 @@ export function FreeResourcesHub() {
                 <Input
                   placeholder="Search courses, tutorials, topics..."
                   value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value)
-                    setShowSuggestions(e.target.value.length > 2)
-                  }}
-                  onFocus={() => setShowSuggestions(searchQuery.length > 2 && searchSuggestions.length > 0)}
-                  onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10 bg-gray-800 border-gray-600"
                 />
-                
-                {/* Search Suggestions Dropdown */}
-                {showSuggestions && searchSuggestions.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-600 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
-                    {searchSuggestions.map((suggestion, index) => (
-                      <button
-                        key={index}
-                        className="w-full px-4 py-2 text-left hover:bg-gray-700 transition-colors text-sm"
-                        onClick={() => {
-                          setSearchQuery(suggestion)
-                          setShowSuggestions(false)
-                        }}
-                      >
-                        {suggestion}
-                      </button>
-                    ))}
-                  </div>
-                )}
               </div>
             </div>
-            
+
             <Select value={selectedCategory || "all"} onValueChange={(value) => setSelectedCategory(value === "all" ? "" : value)}>
               <SelectTrigger className="bg-gray-800 border-gray-600">
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Categories</SelectItem>
-                {filters.categories.map((category) => (
+                {categories.map((category) => (
                   <SelectItem key={category} value={category}>{category}</SelectItem>
                 ))}
               </SelectContent>
@@ -574,7 +695,7 @@ export function FreeResourcesHub() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Levels</SelectItem>
-                {filters.levels.map((level) => (
+                {levels.map((level) => (
                   <SelectItem key={level} value={level}>{level}</SelectItem>
                 ))}
               </SelectContent>
@@ -587,12 +708,12 @@ export function FreeResourcesHub() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Languages</SelectItem>
-                  {filters.languages.map((language) => (
+                  {languages.map((language) => (
                     <SelectItem key={language} value={language}>{language}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              
+
               <Button variant="outline" size="sm" onClick={clearFilters}>
                 Clear
               </Button>
@@ -669,24 +790,111 @@ export function FreeResourcesHub() {
         </TabsContent>
       </Tabs>
 
-      {/* Video Dialog */}
-      <Dialog open={showVideoDialog} onOpenChange={setShowVideoDialog}>
-        <DialogContent className="max-w-4xl max-h-[80vh] bg-gray-900 border-gray-700">
+      {/* Video Player Dialog */}
+      <Dialog open={showVideoPlayer} onOpenChange={setShowVideoPlayer}>
+        <DialogContent className="max-w-4xl w-full h-[80vh]">
           <DialogHeader>
-            <DialogTitle className="text-blue-400">
-              {selectedResource?.title}
+            <DialogTitle className="flex items-center justify-between">
+              {currentVideo?.title}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowVideoPlayer(false)}
+              >
+                <X className="w-4 h-4" />
+              </Button>
             </DialogTitle>
           </DialogHeader>
-          {selectedResource?.embed_url && (
-            <div className="aspect-video">
-              <iframe
-                src={selectedResource.embed_url}
-                className="w-full h-full rounded-lg"
-                allowFullScreen
-                title={selectedResource.title}
-              />
+
+          {currentVideo?.embed_url && (
+            <div className="flex-1">
+              <AspectRatio ratio={16 / 9} className="bg-muted">
+                <iframe
+                  src={currentVideo.embed_url}
+                  title={currentVideo.title}
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  className="w-full h-full rounded-md"
+                />
+              </AspectRatio>
+
+              <div className="mt-4">
+                <p className="text-sm text-gray-400 mb-2">{currentVideo.description}</p>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <Badge variant="outline">{currentVideo.level}</Badge>
+                    <div className="flex items-center">
+                      <Clock className="w-4 h-4 mr-1" />
+                      <span className="text-sm">{currentVideo.duration}</span>
+                    </div>
+                    <div className="flex items-center">
+                      <Star className="w-4 h-4 mr-1 text-yellow-500" />
+                      <span className="text-sm">{currentVideo.rating}</span>
+                    </div>
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleBookmark(currentVideo.id, 'in_progress')}
+                  >
+                    <Bookmark className="w-4 h-4 mr-2" />
+                    Save Progress
+                  </Button>
+                </div>
+              </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Add to Learning Path Dialog */}
+      <Dialog open={showAddToPath !== null} onOpenChange={() => setShowAddToPath(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add to Learning Path</DialogTitle>
+            <DialogDescription>
+              Choose a folder to add "{showAddToPath?.title}" to your learning path
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {learningFolders.length > 0 ? (
+              <div className="grid gap-2">
+                {learningFolders.map((folder) => (
+                  <Button
+                    key={folder.id}
+                    variant="outline"
+                    className="justify-start h-auto p-4"
+                    onClick={() => showAddToPath && handleAddToLearningPath(showAddToPath, folder.id)}
+                  >
+                    <div className="flex items-center w-full">
+                      <div className={`w-3 h-3 rounded-full bg-${folder.color}-500 mr-3`} />
+                      <div className="flex-1 text-left">
+                        <div className="font-medium">{folder.name}</div>
+                        <div className="text-sm text-gray-400">
+                          {folder.completed_items}/{folder.total_items} completed
+                        </div>
+                      </div>
+                      <div className="text-sm text-gray-400">
+                        {folder.progress}%
+                      </div>
+                    </div>
+                  </Button>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <FolderPlus className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+                <p className="text-gray-400 mb-4">No learning folders yet</p>
+                <Button variant="outline">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create Learning Folder
+                </Button>
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

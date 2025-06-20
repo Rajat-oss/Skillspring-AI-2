@@ -281,3 +281,115 @@ class FreeResourcesService:
         # Sort by rating and return top 10
         recommended.sort(key=lambda x: x['rating'], reverse=True)
         return recommended[:10]
+
+    def get_resources_for_learning_path(self, learning_goals: List[str]) -> List[Dict]:
+        """Get resources specifically for learning path goals"""
+        all_resources = self.get_all_resources()
+        relevant_resources = []
+        
+        for goal in learning_goals:
+            goal_lower = goal.lower()
+            for resource in all_resources:
+                # Check if resource is relevant to the learning goal
+                if (goal_lower in resource['title'].lower() or 
+                    goal_lower in resource['description'].lower() or
+                    any(goal_lower in tag.lower() for tag in resource['tags'])):
+                    
+                    # Only add high-quality resources (rating >= 4.0)
+                    if resource['rating'] >= 4.0:
+                        resource['relevance_score'] = self._calculate_relevance(resource, goal)
+                        relevant_resources.append(resource)
+        
+        # Remove duplicates and sort by relevance and rating
+        seen_ids = set()
+        unique_resources = []
+        for resource in relevant_resources:
+            if resource['id'] not in seen_ids:
+                seen_ids.add(resource['id'])
+                unique_resources.append(resource)
+        
+        # Sort by relevance score and rating
+        unique_resources.sort(key=lambda x: (x.get('relevance_score', 0), x['rating']), reverse=True)
+        return unique_resources[:15]  # Limit to top 15 resources
+
+    def _calculate_relevance(self, resource: Dict, goal: str) -> float:
+        """Calculate relevance score for a resource based on learning goal"""
+        score = 0.0
+        goal_lower = goal.lower()
+        
+        # Title match (highest weight)
+        if goal_lower in resource['title'].lower():
+            score += 3.0
+        
+        # Description match
+        if goal_lower in resource['description'].lower():
+            score += 2.0
+        
+        # Tags match
+        for tag in resource['tags']:
+            if goal_lower in tag.lower():
+                score += 1.5
+        
+        # Category match
+        if goal_lower in resource['category'].lower():
+            score += 1.0
+        
+        # Provider preference (trusted sources get bonus)
+        trusted_providers = ['freecodecamp', 'mit', 'stanford', 'harvard', 'coursera', 'edx']
+        if any(provider in resource['provider'].lower() for provider in trusted_providers):
+            score += 0.5
+        
+        return score
+
+    def add_resource_from_external(self, resource_data: Dict) -> Dict:
+        """Add a resource fetched from external sources"""
+        try:
+            resource_id = str(uuid.uuid4())
+            created_at = datetime.utcnow().isoformat()
+            
+            # Read existing resources
+            resources = []
+            if os.path.exists(self.resources_file):
+                with open(self.resources_file, 'r', encoding='utf-8') as file:
+                    reader = csv.DictReader(file)
+                    resources = list(reader)
+            
+            # Check if resource already exists (by URL)
+            existing_resource = next((r for r in resources if r['url'] == resource_data.get('url', '')), None)
+            if existing_resource:
+                return {'status': 'exists', 'id': existing_resource['id']}
+            
+            # Add new resource
+            new_resource = {
+                'id': resource_id,
+                'title': resource_data.get('title', ''),
+                'description': resource_data.get('description', ''),
+                'provider': resource_data.get('provider', 'External'),
+                'category': resource_data.get('category', 'General'),
+                'level': resource_data.get('level', 'Beginner'),
+                'duration': resource_data.get('duration', ''),
+                'url': resource_data.get('url', ''),
+                'embed_url': resource_data.get('embed_url', ''),
+                'thumbnail': resource_data.get('thumbnail', ''),
+                'language': resource_data.get('language', 'English'),
+                'tags': ','.join(resource_data.get('tags', [])),
+                'rating': str(resource_data.get('rating', 4.0)),
+                'created_at': created_at
+            }
+            
+            resources.append(new_resource)
+            
+            # Write back to file
+            with open(self.resources_file, 'w', newline='', encoding='utf-8') as file:
+                fieldnames = ['id', 'title', 'description', 'provider', 'category', 'level',
+                            'duration', 'url', 'embed_url', 'thumbnail', 'language',
+                            'tags', 'rating', 'created_at']
+                writer = csv.DictWriter(file, fieldnames=fieldnames)
+                writer.writeheader()
+                writer.writerows(resources)
+            
+            return {'status': 'added', 'id': resource_id}
+            
+        except Exception as e:
+            print(f"Error adding external resource: {e}")
+            return {'status': 'error', 'message': str(e)}

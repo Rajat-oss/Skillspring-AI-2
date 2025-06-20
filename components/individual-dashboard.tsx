@@ -40,6 +40,7 @@ import { useAuth } from "@/components/auth-provider"
 import { ResumeUpload } from "@/components/resume-upload"
 import { CertificateTracker } from "@/components/certificate-tracker"
 import { FreeResourcesHub } from "@/components/free-resources-hub"
+import { LearningFoldersManager } from "@/components/learning-folders-manager"
 import { useToast } from "@/hooks/use-toast"
 
 interface LearningPath {
@@ -724,8 +725,11 @@ What would you like to explore today? 🚀`,
 
           {/* Enhanced Learning Tab */}
           <TabsContent value="learning" className="space-y-6">
-            <Tabs defaultValue="courses" className="space-y-6">
-              <TabsList className="grid w-full grid-cols-2 bg-gray-900/50">
+            <Tabs defaultValue="folders" className="space-y-6">
+              <TabsList className="grid w-full grid-cols-3 bg-gray-900/50">
+                <TabsTrigger value="folders" className="data-[state=active]:bg-purple-600">
+                  Learning Folders
+                </TabsTrigger>
                 <TabsTrigger value="courses" className="data-[state=active]:bg-blue-600">
                   Learning Paths
                 </TabsTrigger>
@@ -733,6 +737,10 @@ What would you like to explore today? 🚀`,
                   Free Resources Hub
                 </TabsTrigger>
               </TabsList>
+
+              <TabsContent value="folders" className="space-y-6">
+                <LearningFoldersManager />
+              </TabsContent>
 
               <TabsContent value="courses" className="space-y-6">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

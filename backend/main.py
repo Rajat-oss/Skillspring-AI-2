@@ -560,15 +560,286 @@ async def start_mate_market_analysis(
     analysis = ai_service.analyze_market(industry)
     return {"analysis": analysis}
 
+# Learning folder and path models
+class LearningFolder(BaseModel):
+    name: str
+    description: Optional[str] = ""
+    color: Optional[str] = "blue"
+
+class LearningPathItem(BaseModel):
+    title: str
+    description: str
+    completed: bool = False
+    resources: List[str] = []
+    estimated_hours: Optional[int] = 1
+
+class GeneratedLearningPath(BaseModel):
+    title: str
+    description: str
+    items: List[LearningPathItem]
+    estimated_total_hours: int
+    difficulty: str
+    skills: List[str]
+
+class AddToPathRequest(BaseModel):
+    folder_id: str
+    generated_path: GeneratedLearningPath
+
+# Initialize learning folders CSV
+LEARNING_FOLDERS_CSV = "data/learning_folders.csv"
+LEARNING_PATH_ITEMS_CSV = "data/learning_path_items.csv"
+
+def init_learning_folders():
+    if not os.path.exists(LEARNING_FOLDERS_CSV):
+        with open(LEARNING_FOLDERS_CSV, 'w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(['id', 'user_id', 'name', 'description', 'color', 'created_at'])
+
+    if not os.path.exists(LEARNING_PATH_ITEMS_CSV):
+        with open(LEARNING_PATH_ITEMS_CSV, 'w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(['id', 'folder_id', 'user_id', 'title', 'description', 'completed', 'resources',
+                           'estimated_hours', 'order_index', 'created_at'])
+
+init_learning_folders()
+
 # Learning endpoints
+@app.get("/learning/folders")
+async def get_learning_folders(current_user: User = Depends(get_current_user)):
+    if current_user.role != "individual":
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    folders_data = read_csv_data(LEARNING_FOLDERS_CSV)
+    user_folders = [folder for folder in folders_data if folder['user_id'] == current_user.id]
+    
+    folders_with_items = []
+    for folder in user_folders:
+        items_data = read_csv_data(LEARNING_PATH_ITEMS_CSV)
+        folder_items = [item for item in items_data if item['folder_id'] == folder['id']]
+        
+        # Calculate progress
+        total_items = len(folder_items)
+        completed_items = len([item for item in folder_items if item['completed'] == 'True'])
+        progress = (completed_items / total_items * 100) if total_items > 0 else 0
+        
+        folders_with_items.append({
+            "id": folder['id'],
+            "name": folder['name'],
+            "description": folder['description'],
+            "color": folder['color'],
+            "progress": int(progress),
+            "total_items": total_items,
+            "completed_items": completed_items,
+            "created_at": folder['created_at']
+        })
+    
+    return {"folders": folders_with_items}
+
+@app.post("/learning/folders")
+async def create_learning_folder(
+    folder: LearningFolder,
+    current_user: User = Depends(get_current_user)
+):
+    if current_user.role != "individual":
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    folder_id = str(uuid.uuid4())
+    created_at = datetime.utcnow().isoformat()
+
+    folders_data = read_csv_data(LEARNING_FOLDERS_CSV)
+    folders_data.append({
+        'id': folder_id,
+        'user_id': current_user.id,
+        'name': folder.name,
+        'description': folder.description,
+        'color': folder.color,
+        'created_at': created_at
+    })
+
+    write_csv_data(LEARNING_FOLDERS_CSV, folders_data, 
+                  ['id', 'user_id', 'name', 'description', 'color', 'created_at'])
+
+    return {"folder_id": folder_id, "message": "Folder created successfully"}
+
+@app.get("/learning/folders/{folder_id}/items")
+async def get_folder_items(
+    folder_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    if current_user.role != "individual":
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    items_data = read_csv_data(LEARNING_PATH_ITEMS_CSV)
+    folder_items = [item for item in items_data if item['folder_id'] == folder_id and item['user_id'] == current_user.id]
+    
+    # Sort by order_index
+    folder_items.sort(key=lambda x: int(x.get('order_index', 0)))
+    
+    formatted_items = []
+    for item in folder_items:
+        formatted_items.append({
+            "id": item['id'],
+            "title": item['title'],
+            "description": item['description'],
+            "completed": item['completed'] == 'True',
+            "resources": item['resources'].split(',') if item['resources'] else [],
+            "estimated_hours": int(item['estimated_hours']) if item['estimated_hours'] else 1,
+            "order_index": int(item.get('order_index', 0))
+        })
+    
+    return {"items": formatted_items}
+
+@app.post("/learning/folders/{folder_id}/items/{item_id}/toggle")
+async def toggle_item_completion(
+    folder_id: str,
+    item_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    if current_user.role != "individual":
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    items_data = read_csv_data(LEARNING_PATH_ITEMS_CSV)
+    
+    for item in items_data:
+        if item['id'] == item_id and item['user_id'] == current_user.id:
+            item['completed'] = 'False' if item['completed'] == 'True' else 'True'
+            break
+    
+    write_csv_data(LEARNING_PATH_ITEMS_CSV, items_data,
+                  ['id', 'folder_id', 'user_id', 'title', 'description', 'completed', 
+                   'resources', 'estimated_hours', 'order_index', 'created_at'])
+    
+    return {"message": "Item completion toggled"}
+
+@app.post("/ai/generate-learning-path")
+async def generate_learning_path(
+    request: dict,
+    current_user: User = Depends(get_current_user)
+):
+    if current_user.role != "individual":
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    goal = request.get('goal', '')
+    skill_level = request.get('skill_level', 'beginner')
+    time_commitment = request.get('time_commitment', '10')
+
+    try:
+        ai_service = AIService()
+        
+        # Create a detailed prompt for learning path generation
+        prompt = f"""Generate a comprehensive learning path for: {goal}
+        
+        User details:
+        - Skill level: {skill_level}
+        - Available time per week: {time_commitment} hours
+        - Profession: {current_user.profession}
+        
+        Create a structured roadmap with:
+        1. Clear milestones/topics to learn
+        2. Estimated hours for each topic
+        3. Practical exercises or projects
+        4. Resource recommendations
+        
+        Format as a JSON structure with title, description, items (each with title, description, estimated_hours), total_hours, difficulty, and skills array."""
+        
+        # Generate the learning path using AI
+        ai_response = await ai_service.generate_ai_chat_response(prompt, {
+            "role": current_user.role,
+            "profession": current_user.profession
+        })
+        
+        # Parse AI response and create structured path
+        # For demo, return a structured example
+        generated_path = {
+            "title": f"{goal} Mastery Path",
+            "description": f"Complete roadmap to master {goal} from {skill_level} level",
+            "items": [
+                {
+                    "title": f"Fundamentals of {goal}",
+                    "description": "Learn the core concepts and terminology",
+                    "completed": False,
+                    "resources": [],
+                    "estimated_hours": 8
+                },
+                {
+                    "title": "Hands-on Practice",
+                    "description": "Build practical projects to apply knowledge",
+                    "completed": False,
+                    "resources": [],
+                    "estimated_hours": 12
+                },
+                {
+                    "title": "Advanced Topics",
+                    "description": "Deep dive into complex concepts",
+                    "completed": False,
+                    "resources": [],
+                    "estimated_hours": 15
+                },
+                {
+                    "title": "Portfolio Project",
+                    "description": "Create a showcase project",
+                    "completed": False,
+                    "resources": [],
+                    "estimated_hours": 20
+                }
+            ],
+            "estimated_total_hours": 55,
+            "difficulty": "intermediate",
+            "skills": goal.split() + ["problem-solving", "project-management"]
+        }
+        
+        return {"generated_path": generated_path, "ai_explanation": ai_response}
+        
+    except Exception as e:
+        print(f"Error generating learning path: {e}")
+        raise HTTPException(status_code=500, detail="Failed to generate learning path")
+
+@app.post("/learning/add-generated-path")
+async def add_generated_path_to_folder(
+    request: AddToPathRequest,
+    current_user: User = Depends(get_current_user)
+):
+    if current_user.role != "individual":
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    items_data = read_csv_data(LEARNING_PATH_ITEMS_CSV)
+    
+    # Get current max order_index for the folder
+    folder_items = [item for item in items_data if item['folder_id'] == request.folder_id]
+    max_order = max([int(item.get('order_index', 0)) for item in folder_items]) if folder_items else 0
+    
+    # Add each item from the generated path
+    for i, item in enumerate(request.generated_path.items):
+        item_id = str(uuid.uuid4())
+        items_data.append({
+            'id': item_id,
+            'folder_id': request.folder_id,
+            'user_id': current_user.id,
+            'title': item.title,
+            'description': item.description,
+            'completed': 'False',
+            'resources': ','.join(item.resources),
+            'estimated_hours': str(item.estimated_hours),
+            'order_index': str(max_order + i + 1),
+            'created_at': datetime.utcnow().isoformat()
+        })
+    
+    write_csv_data(LEARNING_PATH_ITEMS_CSV, items_data,
+                  ['id', 'folder_id', 'user_id', 'title', 'description', 'completed', 
+                   'resources', 'estimated_hours', 'order_index', 'created_at'])
+    
+    return {"message": "Learning path added successfully", "items_added": len(request.generated_path.items)}
+
 @app.get("/learning/paths")
 async def get_learning_paths(current_user: User = Depends(get_current_user)):
     if current_user.role != "individual":
         raise HTTPException(status_code=403, detail="Access denied")
 
+    # Return both old format paths and new folder-based structure
     paths_data = read_csv_data(LEARNING_PATHS_CSV)
-
-    # Convert to proper format
+    folders_data = read_csv_data(LEARNING_FOLDERS_CSV)
+    
+    # Legacy paths
     paths = []
     for path in paths_data:
         paths.append({
@@ -580,8 +851,11 @@ async def get_learning_paths(current_user: User = Depends(get_current_user)):
             "difficulty": path['difficulty'],
             "skills": path['skills'].split(',') if path['skills'] else []
         })
-
-    return {"paths": paths}
+    
+    # New folder-based structure
+    user_folders = [folder for folder in folders_data if folder['user_id'] == current_user.id]
+    
+    return {"paths": paths, "folders": len(user_folders)}
 
 # Job endpoints
 @app.get("/jobs/recommendations")
