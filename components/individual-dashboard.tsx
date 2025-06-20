@@ -219,6 +219,7 @@ export function IndividualDashboard() {
     setActivityLogs(prev => [logActivity, ...prev])
 
     try {
+        const token = localStorage.getItem('token')
         const response = await fetch('/api/ai/chat', {
           method: 'POST',
           headers: {
@@ -861,8 +862,7 @@ What would you like to explore today? 🚀`,
                   variant="outline" 
                   size="sm"
                   onClick={fetchLiveOpportunities}
-                  disabled```text
-=opportunitiesLoading}
+                  disabled={opportunitiesLoading}
                 >
                   {opportunitiesLoading ? 'Refreshing...' : 'Refresh'}
                 </Button>
@@ -1120,5 +1120,5 @@ What would you like to explore today? 🚀`,
         </Tabs>
       </div>
     </div>
-  )
+  );
 }
