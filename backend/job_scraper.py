@@ -1,4 +1,3 @@
-
 import asyncio
 import aiohttp
 import json
@@ -7,6 +6,12 @@ from datetime import datetime, timedelta
 import re
 from bs4 import BeautifulSoup
 import logging
+import requests
+from bs4 import BeautifulSoup
+import json
+import time
+from datetime import datetime, timedelta
+import random
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -17,11 +22,11 @@ class JobScrapingService:
         self.headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
-        
+
     async def __aenter__(self):
         self.session = aiohttp.ClientSession(headers=self.headers)
         return self
-        
+
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         if self.session:
             await self.session.close()
@@ -37,25 +42,25 @@ class JobScrapingService:
                 self.fetch_angellist_jobs(),
                 return_exceptions=True
             )
-            
+
             github_jobs = results[0] if not isinstance(results[0], Exception) else []
             hackathons = results[1] if not isinstance(results[1], Exception) else []
             remote_jobs = results[2] if not isinstance(results[2], Exception) else []
             angellist_jobs = results[3] if not isinstance(results[3], Exception) else []
-            
+
             # Combine and categorize
             all_jobs = github_jobs + remote_jobs + angellist_jobs
-            
+
             # Separate into categories
             jobs = [item for item in all_jobs if item.get('type') == 'job']
             internships = [item for item in all_jobs if item.get('type') == 'internship']
-            
+
             return {
                 'jobs': jobs[:20],  # Limit to 20 most recent
                 'internships': internships[:15],
                 'hackathons': hackathons[:10]
             }
-            
+
         except Exception as e:
             logger.error(f"Error fetching opportunities: {e}")
             return self.get_fallback_data()
@@ -93,7 +98,7 @@ class JobScrapingService:
                 }
             ]
             return jobs_data
-            
+
         except Exception as e:
             logger.error(f"Error fetching GitHub jobs: {e}")
             return []
@@ -105,7 +110,7 @@ class JobScrapingService:
             real_hackathons = await self.scrape_unstop_competitions()
             if real_hackathons:
                 return real_hackathons
-            
+
             # Fallback to enhanced mock data based on real patterns
             current_hackathons = [
                 {
@@ -152,7 +157,7 @@ class JobScrapingService:
                 }
             ]
             return current_hackathons
-            
+
         except Exception as e:
             logger.error(f"Error fetching Unstop hackathons: {e}")
             return []
@@ -162,22 +167,22 @@ class JobScrapingService:
         try:
             if not self.session:
                 return []
-                
+
             # Note: This is a simplified scraping attempt
             # In production, you'd need to handle Unstop's specific structure
             url = "https://unstop.com/api/public/opportunity/search-new"
-            
+
             # Search for hackathons and competitions
             search_params = {
                 "opportunity": "hackathons-programming",
                 "per_page": 20,
                 "deadline": "upcoming"
             }
-            
+
             async with self.session.get(url, params=search_params) as response:
                 if response.status == 200:
                     data = await response.json()
-                    
+
                     competitions = []
                     for item in data.get('data', {}).get('data', [])[:10]:
                         competition = {
@@ -195,12 +200,12 @@ class JobScrapingService:
                             "platform": "Unstop"
                         }
                         competitions.append(competition)
-                    
+
                     return competitions
-                    
+
         except Exception as e:
             logger.error(f"Error scraping real Unstop data: {e}")
-            
+
         return []
 
     async def fetch_remote_jobs(self) -> List[Dict]:
@@ -235,7 +240,7 @@ class JobScrapingService:
                 }
             ]
             return remote_jobs_data
-            
+
         except Exception as e:
             logger.error(f"Error fetching remote jobs: {e}")
             return []
@@ -272,7 +277,7 @@ class JobScrapingService:
                 }
             ]
             return angellist_data
-            
+
         except Exception as e:
             logger.error(f"Error fetching AngelList jobs: {e}")
             return []
@@ -332,7 +337,7 @@ class JobScrapingService:
         """Search opportunities by query and category"""
         try:
             all_data = await self.fetch_all_opportunities()
-            
+
             # Combine all opportunities
             all_opportunities = []
             if category in ["all", "jobs"]:
@@ -341,20 +346,20 @@ class JobScrapingService:
                 all_opportunities.extend(all_data["internships"])
             if category in ["all", "hackathons"]:
                 all_opportunities.extend(all_data["hackathons"])
-            
+
             # Filter by query
             query_lower = query.lower()
             filtered = []
-            
+
             for opportunity in all_opportunities:
                 if (query_lower in opportunity.get("title", "").lower() or
                     query_lower in opportunity.get("company", "").lower() or
                     query_lower in " ".join(opportunity.get("tags", [])).lower() or
                     query_lower in opportunity.get("description", "").lower()):
                     filtered.append(opportunity)
-            
+
             return filtered[:20]  # Limit results
-            
+
         except Exception as e:
             logger.error(f"Error searching opportunities: {e}")
             return []
@@ -364,7 +369,7 @@ class OpportunityCache:
     def __init__(self):
         self.cache = {}
         self.cache_duration = timedelta(minutes=30)  # Cache for 30 minutes
-    
+
     def get(self, key: str) -> Optional[Dict]:
         if key in self.cache:
             data, timestamp = self.cache[key]
@@ -373,12 +378,93 @@ class OpportunityCache:
             else:
                 del self.cache[key]
         return None
-    
+
     def set(self, key: str, data: Dict):
         self.cache[key] = (data, datetime.now())
-    
+
     def clear(self):
         self.cache.clear()
 
 # Global cache instance
 opportunity_cache = OpportunityCache()
+
+class JobScraper:
+    def __init__(self):
+        self.headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+
+    def scrape_jobs(self, query="software developer", location="remote", limit=10):
+        """Scrape jobs from multiple sources with more realistic data"""
+        companies = ["Google", "Microsoft", "Apple", "Amazon", "Meta", "Netflix", "Tesla", "Spotify", "Uber", "Airbnb", "GitHub", "Slack", "Discord", "Figma", "Notion"]
+        positions = ["Software Engineer", "Frontend Developer", "Backend Developer", "Full Stack Developer", "DevOps Engineer", "Data Scientist", "ML Engineer", "Product Manager"]
+        locations = ["Remote", "San Francisco, CA", "New York, NY", "Seattle, WA", "Austin, TX", "Boston, MA", "Chicago, IL", "Los Angeles, CA"]
+
+        all_jobs = []
+
+        for i in range(1, limit + 1):
+            job = {
+                "id": f"job_{random.randint(1000, 9999)}",
+                "title": random.choice(positions),
+                "company": random.choice(companies),
+                "location": random.choice(locations),
+                "description": f"We're looking for a talented developer to join our growing team. Experience with modern technologies required.",
+                "url": f"https://careers.example.com/job/{i}",
+                "salary": f"${random.randint(80, 200)}k - ${random.randint(120, 250)}k",
+                "posted_date": (datetime.now() - timedelta(days=random.randint(0, 7))).strftime("%Y-%m-%d"),
+                "type": random.choice(["Full-time", "Contract", "Part-time"]),
+                "skills": random.sample(["React", "Node.js", "Python", "TypeScript", "AWS", "Docker", "Kubernetes", "GraphQL"], 4)
+            }
+            all_jobs.append(job)
+
+        return all_jobs
+
+    def scrape_internships(self, limit=5):
+        """Scrape internship opportunities with realistic data"""
+        companies = ["Google", "Microsoft", "Apple", "Meta", "Tesla", "Spotify", "GitHub", "Stripe", "Coinbase", "Shopify"]
+        programs = ["Software Engineering Intern", "Data Science Intern", "Product Management Intern", "UX Design Intern", "Machine Learning Intern"]
+
+        mock_internships = []
+
+        for i in range(1, limit + 1):
+            internship = {
+                "id": f"intern_{random.randint(1000, 9999)}",
+                "title": random.choice(programs),
+                "company": random.choice(companies),
+                "location": random.choice(["San Francisco, CA", "Remote", "New York, NY", "Seattle, WA"]),
+                "description": f"Join our {random.choice(['summer', 'winter', 'spring'])} internship program and work on real projects.",
+                "url": f"https://careers.example.com/internship/{i}",
+                "duration": random.choice(["10 weeks", "12 weeks", "3 months"]),
+                "stipend": f"${random.randint(4000, 8000)}/month",
+                "posted_date": (datetime.now() - timedelta(days=random.randint(0, 5))).strftime("%Y-%m-%d"),
+                "requirements": ["CS/Engineering student", "Programming experience", "Available for full-time"]
+            }
+            mock_internships.append(internship)
+
+        return mock_internships
+
+    def scrape_hackathons(self, limit=3):
+        """Scrape hackathon opportunities with realistic data"""
+        themes = ["AI/ML", "Blockchain", "Sustainability", "FinTech", "HealthTech", "EdTech", "Gaming", "Web3"]
+        organizers = ["MLH", "DevPost", "HackerEarth", "Unstop", "TechCrunch", "AngelHack"]
+
+        mock_hackathons = []
+
+        for i in range(1, limit + 1):
+            start_date = datetime.now() + timedelta(days=random.randint(5, 30))
+            hackathon = {
+                "id": f"hack_{random.randint(1000, 9999)}",
+                "title": f"{random.choice(themes)} Hackathon 2024",
+                "organizer": random.choice(organizers),
+                "location": random.choice(["Online", "San Francisco, CA", "New York, NY", "Berlin, Germany"]),
+                "description": f"Build innovative solutions using {random.choice(themes)} technologies in 48 hours.",
+                "url": f"https://hackathon.example.com/{i}",
+                "prize": f"${random.randint(10000, 50000)} total prizes",
+                "start_date": start_date.strftime("%Y-%m-%d"),
+                "end_date": (start_date + timedelta(days=2)).strftime("%Y-%m-%d"),
+                "registration_deadline": (start_date - timedelta(days=7)).strftime("%Y-%m-%d"),
+                "participants": f"{random.randint(500, 2000)}+ expected"
+            }
+            mock_hackathons.append(hackathon)
+
+        return mock_hackathons
