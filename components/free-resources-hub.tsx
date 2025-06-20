@@ -556,24 +556,24 @@ export function FreeResourcesHub() {
               </div>
             </div>
             
-            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+            <Select value={selectedCategory || "all"} onValueChange={(value) => setSelectedCategory(value === "all" ? "" : value)}>
               <SelectTrigger className="bg-gray-800 border-gray-600">
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Categories</SelectItem>
+                <SelectItem value="all">All Categories</SelectItem>
                 {filters.categories.map((category) => (
                   <SelectItem key={category} value={category}>{category}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
 
-            <Select value={selectedLevel} onValueChange={setSelectedLevel}>
+            <Select value={selectedLevel || "all"} onValueChange={(value) => setSelectedLevel(value === "all" ? "" : value)}>
               <SelectTrigger className="bg-gray-800 border-gray-600">
                 <SelectValue placeholder="Level" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Levels</SelectItem>
+                <SelectItem value="all">All Levels</SelectItem>
                 {filters.levels.map((level) => (
                   <SelectItem key={level} value={level}>{level}</SelectItem>
                 ))}
@@ -581,12 +581,12 @@ export function FreeResourcesHub() {
             </Select>
 
             <div className="flex space-x-2">
-              <Select value={selectedLanguage} onValueChange={setSelectedLanguage}>
+              <Select value={selectedLanguage || "all"} onValueChange={(value) => setSelectedLanguage(value === "all" ? "" : value)}>
                 <SelectTrigger className="bg-gray-800 border-gray-600">
                   <SelectValue placeholder="Language" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Languages</SelectItem>
+                  <SelectItem value="all">All Languages</SelectItem>
                   {filters.languages.map((language) => (
                     <SelectItem key={language} value={language}>{language}</SelectItem>
                   ))}

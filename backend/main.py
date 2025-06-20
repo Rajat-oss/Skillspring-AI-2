@@ -15,6 +15,9 @@ from websocket_service import socket_app, send_notification, broadcast_job_updat
 from user_activity import log_user_activity, log_user_application, get_user_activities, get_user_applications
 from free_resources_service import FreeResourcesService
 
+# Set YouTube API key
+os.environ['YOUTUBE_API_KEY'] = 'AIzaSyDhnxlM0aLBH5Jz8XLclT033F7HqakIADk'
+
 app = FastAPI(title="SkillSpring Launchpad API", version="1.0.0")
 
 # CORS middleware
@@ -732,23 +735,23 @@ async def get_dashboard_stats(current_user: User = Depends(get_current_user)):
     # Get real user data
     user_activities = get_user_activities(current_user.id, limit=100)
     user_applications = get_user_applications(current_user.id)
-    
+
     # Calculate real statistics
     ai_interactions = len([a for a in user_activities if a['type'] == 'ai_interaction'])
     course_activities = [a for a in user_activities if a['type'] == 'course_completed']
-    
+
     # Get learning paths progress
     paths_data = read_csv_data(LEARNING_PATHS_CSV)
     total_courses = len(paths_data)
     completed_courses = len([p for p in paths_data if int(p.get('progress', 0)) == 100])
     in_progress_courses = len([p for p in paths_data if 0 < int(p.get('progress', 0)) < 100])
-    
+
     # Calculate average progress
     if paths_data:
         average_progress = sum(int(p.get('progress', 0)) for p in paths_data) // len(paths_data)
     else:
         average_progress = 0
-    
+
     # Calculate career score based on activity
     base_score = 50
     progress_boost = min(average_progress // 2, 30)  # Up to 30 points for progress
@@ -802,7 +805,7 @@ async def apply_to_opportunity(
         opportunity.get('title'),
         opportunity.get('company', 'Unknown')
     )
-    
+
     # Log the activity
     log_user_activity(
         current_user.id,
@@ -827,7 +830,7 @@ async def get_personalized_recommendations(current_user: User = Depends(get_curr
     # Get user's application history and activities for personalization
     applications = get_user_applications(current_user.id)
     activities = get_user_activities(current_user.id, limit=50)
-    
+
     # Analyze user's interests from applications
     applied_skills = set()
     applied_companies = set()
@@ -932,18 +935,18 @@ async def get_free_resources(
     """Get free learning resources with optional filters"""
     if current_user.role != "individual":
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     resources = free_resources_service.search_resources(
         query=search or "",
         category=category or "",
         level=level or "",
         language=language or ""
     )
-    
+
     # Get user's bookmarks to add status
     user_bookmarks = free_resources_service.get_user_bookmarks(current_user.id)
     bookmark_dict = {b['id']: b for b in user_bookmarks}
-    
+
     # Add bookmark status to resources
     for resource in resources:
         if resource['id'] in bookmark_dict:
@@ -953,7 +956,7 @@ async def get_free_resources(
         else:
             resource['bookmark_status'] = None
             resource['progress'] = 0
-    
+
     return {"resources": resources}
 
 @app.get("/learning/free-resources/categories")
@@ -961,11 +964,11 @@ async def get_resource_categories(current_user: User = Depends(get_current_user)
     """Get all available resource categories"""
     if current_user.role != "individual":
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     categories = free_resources_service.get_categories()
     levels = free_resources_service.get_levels()
     languages = free_resources_service.get_languages()
-    
+
     return {
         "categories": categories,
         "levels": levels,
@@ -977,7 +980,7 @@ async def get_user_bookmarks(current_user: User = Depends(get_current_user)):
     """Get user's bookmarked resources"""
     if current_user.role != "individual":
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     bookmarks = free_resources_service.get_user_bookmarks(current_user.id)
     return {"bookmarks": bookmarks}
 
@@ -990,13 +993,13 @@ async def bookmark_resource(
     """Bookmark a resource"""
     if current_user.role != "individual":
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     valid_statuses = ["bookmarked", "in_progress", "completed"]
     if status not in valid_statuses:
         raise HTTPException(status_code=400, detail="Invalid status")
-    
+
     result = free_resources_service.bookmark_resource(current_user.id, resource_id, status)
-    
+
     # Log activity
     log_user_activity(
         current_user.id,
@@ -1005,7 +1008,7 @@ async def bookmark_resource(
         f'Marked resource as {status}',
         {'resource_id': resource_id, 'status': status}
     )
-    
+
     return result
 
 @app.post("/learning/free-resources/{resource_id}/progress")
@@ -1017,12 +1020,12 @@ async def update_resource_progress(
     """Update learning progress for a resource"""
     if current_user.role != "individual":
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     if not 0 <= progress <= 100:
         raise HTTPException(status_code=400, detail="Progress must be between 0 and 100")
-    
+
     result = free_resources_service.update_progress(current_user.id, resource_id, progress)
-    
+
     # Log activity
     status_text = "completed" if progress >= 100 else "updated progress on"
     log_user_activity(
@@ -1032,7 +1035,7 @@ async def update_resource_progress(
         f'Updated progress to {progress}% on resource',
         {'resource_id': resource_id, 'progress': progress}
     )
-    
+
     return result
 
 @app.get("/learning/free-resources/recommendations")
@@ -1040,18 +1043,18 @@ async def get_recommended_resources(current_user: User = Depends(get_current_use
     """Get AI-recommended free resources"""
     if current_user.role != "individual":
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     user_profile = {
         'profession': current_user.profession,
         'email': current_user.email
     }
-    
+
     recommendations = free_resources_service.get_recommended_resources(user_profile)
-    
+
     # Get user's bookmarks to add status
     user_bookmarks = free_resources_service.get_user_bookmarks(current_user.id)
     bookmark_dict = {b['id']: b for b in user_bookmarks}
-    
+
     # Add bookmark status to recommendations
     for resource in recommendations:
         if resource['id'] in bookmark_dict:
@@ -1061,7 +1064,7 @@ async def get_recommended_resources(current_user: User = Depends(get_current_use
         else:
             resource['bookmark_status'] = None
             resource['progress'] = 0
-    
+
     return {"recommendations": recommendations}
 
 @app.post("/admin/update-content")
@@ -1069,20 +1072,20 @@ async def manual_content_update(current_user: User = Depends(get_current_user)):
     """Manually trigger content update (admin only)"""
     # For demo purposes, allow any user to trigger update
     # In production, add admin role check
-    
+
     try:
         from background_tasks import JobScraper
         scraper = JobScraper()
-        
+
         # Update learning content
         count = await scraper.update_learning_content()
-        
+
         return {
             "status": "success", 
             "message": f"Content updated successfully. Added {count} new resources.",
             "updated_count": count
         }
-        
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to update content: {str(e)}")
 
@@ -1096,30 +1099,30 @@ async def search_resources_realtime(
     """Real-time search with auto-suggestions"""
     if current_user.role != "individual":
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     # Search existing resources
     resources = free_resources_service.search_resources(
         query=q,
         category=category or "",
         level=level or ""
     )
-    
+
     # If we have few results and YouTube API is available, search YouTube
     if len(resources) < 5:
         try:
             from youtube_service import YouTubeService
             youtube_service = YouTubeService()
-            
+
             # Determine category from query if not provided
             search_category = category or youtube_service.categorize_content(q)
-            
+
             # Search YouTube for additional content
             youtube_results = youtube_service.search_educational_videos(
                 query=q, 
                 category=search_category, 
                 max_results=10
             )
-            
+
             # Add YouTube results to response
             for video in youtube_results:
                 # Convert tags list to comma-separated string
@@ -1127,15 +1130,15 @@ async def search_resources_realtime(
                     video['tags'] = video['tags']
                 else:
                     video['tags'] = video.get('tags', '').split(',') if video.get('tags') else []
-                
+
                 video['bookmark_status'] = None
                 video['progress'] = 0
-                
+
             resources.extend(youtube_results)
-            
+
         except Exception as e:
             print(f"Error searching YouTube: {e}")
-    
+
     return {
         "resources": resources[:20],  # Limit to 20 results
         "total": len(resources),
@@ -1147,7 +1150,7 @@ def generate_search_suggestions(query: str) -> List[str]:
     """Generate search suggestions based on query"""
     suggestions = []
     query_lower = query.lower()
-    
+
     # Technology suggestions
     tech_suggestions = {
         'web': ['web development', 'web design', 'html css', 'javascript'],
@@ -1158,16 +1161,16 @@ def generate_search_suggestions(query: str) -> List[str]:
         'design': ['ui design', 'ux design', 'graphic design', 'figma tutorial'],
         'mobile': ['mobile development', 'android development', 'ios development', 'flutter']
     }
-    
+
     for keyword, related in tech_suggestions.items():
         if keyword in query_lower:
             suggestions.extend(related)
-    
+
     # Remove duplicates and current query
     suggestions = list(set(suggestions))
     if query.lower() in suggestions:
         suggestions.remove(query.lower())
-    
+
     return suggestions[:8]
 
 # Health check

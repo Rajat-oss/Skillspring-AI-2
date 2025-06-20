@@ -1,15 +1,14 @@
-
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization')
-    
+
     if (!authHeader) {
       return NextResponse.json({ error: 'Authorization required' }, { status: 401 })
     }
 
-    const response = await fetch('http://0.0.0.0:8000/admin/update-content', {
+    const response = await fetch('http://localhost:8000/admin/update-content', {
       method: 'POST',
       headers: {
         'Authorization': authHeader,

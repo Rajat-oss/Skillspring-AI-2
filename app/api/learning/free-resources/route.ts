@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     if (level) params.append('level', level)
     if (language) params.append('language', language)
 
-    const response = await fetch(`http://0.0.0.0:8000/learning/free-resources?${params}`, {
+    const response = await fetch(`http://localhost:8000/learning/free-resources?${params}`, {
       headers: {
         'Authorization': authHeader,
         'Content-Type': 'application/json',

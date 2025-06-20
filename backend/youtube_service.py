@@ -12,6 +12,9 @@ class YouTubeService:
         self.base_url = "https://www.googleapis.com/youtube/v3"
         self.resources_file = "data/free_resources.csv"
         
+        if not self.api_key:
+            print("Warning: YouTube API key not found in environment variables")
+        
     def search_educational_videos(self, query: str, category: str, max_results: int = 20) -> List[Dict]:
         """Search YouTube for educational videos"""
         if not self.api_key:

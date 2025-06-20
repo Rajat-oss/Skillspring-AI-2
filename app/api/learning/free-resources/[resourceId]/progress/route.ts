@@ -15,12 +15,13 @@ export async function POST(
     const body = await request.json()
     const { progress } = body
 
-    const response = await fetch(`http://0.0.0.0:8000/learning/free-resources/${params.resourceId}/progress?progress=${progress}`, {
+    const response = await fetch(`http://localhost:8000/learning/free-resources/${params.resourceId}/progress`, {
       method: 'POST',
       headers: {
         'Authorization': authHeader,
         'Content-Type': 'application/json',
       },
+      body: JSON.stringify({ progress })
     })
 
     if (!response.ok) {
