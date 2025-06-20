@@ -219,21 +219,36 @@ export function IndividualDashboard() {
     setActivityLogs(prev => [logActivity, ...prev])
 
     try {
-      const token = localStorage.getItem('token')
-      const response = await fetch('/api/ai/chat/student-assistant', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          message: userMessage.content,
-          context: {
-            role: user?.role,
-            profession: user?.email?.split('@')[0]
-          }
+        const response = await fetch('/api/ai/chat', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ 
+            message: userMessage.content,
+            context: {
+              user_activities: activityLogs.slice(0, 5),
+              learning_progress: learningFolders.slice(0, 3),
+              recent_opportunities: {
+                jobs: liveOpportunities.jobs?.slice(0, 3) || [],
+                internships: liveOpportunities.internships?.slice(0, 3) || [],
+                hackathons: liveOpportunities.hackathons?.slice(0, 3) || []
+              }
+            },
+            system_prompt: `You are an AI Career Assistant integrated into SkillSpring AI platform. You help students and job seekers with real-time career guidance.
+
+Core responsibilities:
+1. Analyze user input for career goals, confusion, or needs
+2. Provide instant, helpful responses with actionable advice
+3. Suggest relevant skills, roadmaps, or resources
+4. Give personalized recommendations using real-time market trends
+5. Guide step-by-step learning plans and micro tasks
+6. Always end helpful responses with "Would you like to save this to your learning path?" or "Want me to search free resources for this?"
+
+Keep responses short, clear, and immediate. Focus on career guidance, learning paths, and job/internship search support. Be positive and mentor-like.`
+          }),
         })
-      })
 
       if (!response.ok) {
         throw new Error('Failed to get AI response')
@@ -762,7 +777,7 @@ What would you like to explore today? 🚀`,
                             )}
                           </div>
                         </div>
-                        <CardDescription>{path.description}</CardDescription>
+                        <CardDescription>{path.description}</CardHeader>
                       </CardHeader>
                       <CardContent className="space-y-4">
                         <div className="space-y-2">
@@ -846,7 +861,8 @@ What would you like to explore today? 🚀`,
                   variant="outline" 
                   size="sm"
                   onClick={fetchLiveOpportunities}
-                  disabled={opportunitiesLoading}
+                  disabled```text
+=opportunitiesLoading}
                 >
                   {opportunitiesLoading ? 'Refreshing...' : 'Refresh'}
                 </Button>
