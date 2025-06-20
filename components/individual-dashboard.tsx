@@ -778,7 +778,7 @@ What would you like to explore today? 🚀`,
                             )}
                           </div>
                         </div>
-                        <CardDescription>{path.description}</CardHeader>
+                        <CardDescription>{path.description}</CardDescription>
                       </CardHeader>
                       <CardContent className="space-y-4">
                         <div className="space-y-2">
@@ -861,7 +861,8 @@ What would you like to explore today? 🚀`,
                 <Button 
                   variant="outline" 
                   size="sm"
-                  onClick={fetchLiveOpportunities}
+                  onClick={```
+fetchLiveOpportunities}
                   disabled={opportunitiesLoading}
                 >
                   {opportunitiesLoading ? 'Refreshing...' : 'Refresh'}
