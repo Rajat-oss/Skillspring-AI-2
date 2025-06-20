@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useEffect } from 'react'
@@ -29,6 +30,7 @@ import {
   Award,
   Plus,
   FileText,
+  Sync,
   Database
 } from "lucide-react"
 import { useAuth } from "@/components/auth-provider"
@@ -56,7 +58,7 @@ interface TrackedApplication {
 export function AppliedApplicationsTracker() {
   const { user } = useAuth()
   const { toast } = useToast()
-
+  
   const [applications, setApplications] = useState<TrackedApplication[]>([])
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
@@ -260,11 +262,11 @@ export function AppliedApplicationsTracker() {
       app.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       app.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
       app.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
-
+    
     const matchesStatus = statusFilter === '' || app.status === statusFilter
     const matchesType = typeFilter === '' || app.type === typeFilter
     const matchesPlatform = platformFilter === '' || app.platform === platformFilter
-
+    
     return matchesSearch && matchesStatus && matchesType && matchesPlatform
   })
 
@@ -308,7 +310,7 @@ export function AppliedApplicationsTracker() {
     const StatusIcon = statusIcons[application.status]
     const TypeIcon = typeIcons[application.type]
     const daysAgo = Math.floor((Date.now() - new Date(application.applied_date).getTime()) / (1000 * 60 * 60 * 24))
-
+    
     const deadlineDays = application.deadline ? 
       Math.ceil((new Date(application.deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null
 
@@ -407,7 +409,7 @@ export function AppliedApplicationsTracker() {
               <ExternalLink className="w-4 h-4 mr-2" />
               View Application
             </Button>
-
+            
             <Select 
               value={application.status}
               onValueChange={(value) => {
@@ -467,11 +469,11 @@ export function AppliedApplicationsTracker() {
             {syncing ? (
               <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
             ) : (
-              <RefreshCw className="w-4 h-4 mr-2" />
+              <Sync className="w-4 h-4 mr-2" />
             )}
             {syncing ? 'Syncing...' : 'Sync Applications'}
           </Button>
-
+          
           <Button className="bg-purple-600 hover:bg-purple-700">
             <Plus className="w-4 h-4 mr-2" />
             Add Platform
@@ -561,7 +563,7 @@ export function AppliedApplicationsTracker() {
               <ApplicationCard key={application.id} application={application} />
             ))}
           </div>
-
+          
           {getApplicationsByTab().length === 0 && (
             <Card className="bg-gray-900/50 border-gray-700">
               <CardContent className="text-center py-12">

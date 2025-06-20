@@ -219,7 +219,6 @@ export function IndividualDashboard() {
     setActivityLogs(prev => [logActivity, ...prev])
 
     try {
-        const token = localStorage.getItem('token')
         const response = await fetch('/api/ai/chat', {
           method: 'POST',
           headers: {
@@ -230,7 +229,7 @@ export function IndividualDashboard() {
             message: userMessage.content,
             context: {
               user_activities: activityLogs.slice(0, 5),
-              learning_progress: learningPaths.slice(0, 3),
+              learning_progress: learningFolders.slice(0, 3),
               recent_opportunities: {
                 jobs: liveOpportunities.jobs?.slice(0, 3) || [],
                 internships: liveOpportunities.internships?.slice(0, 3) || [],
@@ -778,7 +777,7 @@ What would you like to explore today? 🚀`,
                             )}
                           </div>
                         </div>
-                        <CardDescription>{path.description}</CardDescription>
+                        <CardDescription>{path.description}</CardHeader>
                       </CardHeader>
                       <CardContent className="space-y-4">
                         <div className="space-y-2">
@@ -862,7 +861,8 @@ What would you like to explore today? 🚀`,
                   variant="outline" 
                   size="sm"
                   onClick={fetchLiveOpportunities}
-                  disabled={opportunitiesLoading}
+                  disabled```text
+=opportunitiesLoading}
                 >
                   {opportunitiesLoading ? 'Refreshing...' : 'Refresh'}
                 </Button>
@@ -877,13 +877,13 @@ What would you like to explore today? 🚀`,
             <Tabs defaultValue="jobs" className="space-y-4">
               <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="jobs">
-                  Latest Jobs ({liveOpportunities.jobs?.length || 0})
+                  Latest Jobs ({liveOpportunities.jobs.length})
                 </TabsTrigger>
                 <TabsTrigger value="internships">
-                  Internships ({liveOpportunities.internships?.length || 0})
+                  Internships ({liveOpportunities.internships.length})
                 </TabsTrigger>
                 <TabsTrigger value="hackathons">
-                  Hackathons ({liveOpportunities.hackathons?.length || 0})
+                  Hackathons ({liveOpportunities.hackathons.length})
                 </TabsTrigger>
               </TabsList>
 
@@ -1120,5 +1120,5 @@ What would you like to explore today? 🚀`,
         </Tabs>
       </div>
     </div>
-  );
+  )
 }

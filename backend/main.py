@@ -816,8 +816,6 @@ async def add_generated_path_to_folder(
     for i, item in enumerate(request.generated_path.items):
         item_id = str(uuid.uuid4())
         items_data.append({
-        # Fix the unclosed brace by completing the dictionary structure
-    })
             'id': item_id,
             'folder_id': request.folder_id,
             'user_id': current_user.id,
