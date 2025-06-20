@@ -14,6 +14,7 @@ from ai_service import AIService
 from websocket_service import socket_app, send_notification, broadcast_job_update, broadcast_candidate_update, update_market_insights
 from user_activity import log_user_activity, log_user_application, get_user_activities, get_user_applications
 from free_resources_service import FreeResourcesService
+from gmail_service import GmailApplicationTracker
 
 # Set YouTube API key
 os.environ['YOUTUBE_API_KEY'] = 'AIzaSyDhnxlM0aLBH5Jz8XLclT033F7HqakIADk'
@@ -94,6 +95,9 @@ init_csv_files()
 
 # Initialize services
 free_resources_service = FreeResourcesService()
+ai_service = AIService()
+activity_tracker = UserActivityTracker()
+gmail_tracker = GmailApplicationTracker()
 
 # Start background tasks
 @app.on_event("startup")
@@ -611,17 +615,17 @@ async def get_learning_folders(current_user: User = Depends(get_current_user)):
 
     folders_data = read_csv_data(LEARNING_FOLDERS_CSV)
     user_folders = [folder for folder in folders_data if folder['user_id'] == current_user.id]
-    
+
     folders_with_items = []
     for folder in user_folders:
         items_data = read_csv_data(LEARNING_PATH_ITEMS_CSV)
         folder_items = [item for item in items_data if item['folder_id'] == folder['id']]
-        
+
         # Calculate progress
         total_items = len(folder_items)
         completed_items = len([item for item in folder_items if item['completed'] == 'True'])
         progress = (completed_items / total_items * 100) if total_items > 0 else 0
-        
+
         folders_with_items.append({
             "id": folder['id'],
             "name": folder['name'],
@@ -632,7 +636,7 @@ async def get_learning_folders(current_user: User = Depends(get_current_user)):
             "completed_items": completed_items,
             "created_at": folder['created_at']
         })
-    
+
     return {"folders": folders_with_items}
 
 @app.post("/learning/folders")
@@ -671,10 +675,10 @@ async def get_folder_items(
 
     items_data = read_csv_data(LEARNING_PATH_ITEMS_CSV)
     folder_items = [item for item in items_data if item['folder_id'] == folder_id and item['user_id'] == current_user.id]
-    
+
     # Sort by order_index
     folder_items.sort(key=lambda x: int(x.get('order_index', 0)))
-    
+
     formatted_items = []
     for item in folder_items:
         formatted_items.append({
@@ -686,7 +690,7 @@ async def get_folder_items(
             "estimated_hours": int(item['estimated_hours']) if item['estimated_hours'] else 1,
             "order_index": int(item.get('order_index', 0))
         })
-    
+
     return {"items": formatted_items}
 
 @app.post("/learning/folders/{folder_id}/items/{item_id}/toggle")
@@ -699,16 +703,16 @@ async def toggle_item_completion(
         raise HTTPException(status_code=403, detail="Access denied")
 
     items_data = read_csv_data(LEARNING_PATH_ITEMS_CSV)
-    
+
     for item in items_data:
         if item['id'] == item_id and item['user_id'] == current_user.id:
             item['completed'] = 'False' if item['completed'] == 'True' else 'True'
             break
-    
+
     write_csv_data(LEARNING_PATH_ITEMS_CSV, items_data,
                   ['id', 'folder_id', 'user_id', 'title', 'description', 'completed', 
                    'resources', 'estimated_hours', 'order_index', 'created_at'])
-    
+
     return {"message": "Item completion toggled"}
 
 @app.post("/ai/generate-learning-path")
@@ -725,29 +729,29 @@ async def generate_learning_path(
 
     try:
         ai_service = AIService()
-        
+
         # Create a detailed prompt for learning path generation
         prompt = f"""Generate a comprehensive learning path for: {goal}
-        
+
         User details:
         - Skill level: {skill_level}
         - Available time per week: {time_commitment} hours
         - Profession: {current_user.profession}
-        
+
         Create a structured roadmap with:
         1. Clear milestones/topics to learn
         2. Estimated hours for each topic
         3. Practical exercises or projects
         4. Resource recommendations
-        
+
         Format as a JSON structure with title, description, items (each with title, description, estimated_hours), total_hours, difficulty, and skills array."""
-        
+
         # Generate the learning path using AI
         ai_response = await ai_service.generate_ai_chat_response(prompt, {
             "role": current_user.role,
             "profession": current_user.profession
         })
-        
+
         # Parse AI response and create structured path
         # For demo, return a structured example
         generated_path = {
@@ -787,9 +791,9 @@ async def generate_learning_path(
             "difficulty": "intermediate",
             "skills": goal.split() + ["problem-solving", "project-management"]
         }
-        
+
         return {"generated_path": generated_path, "ai_explanation": ai_response}
-        
+
     except Exception as e:
         print(f"Error generating learning path: {e}")
         raise HTTPException(status_code=500, detail="Failed to generate learning path")
@@ -803,11 +807,11 @@ async def add_generated_path_to_folder(
         raise HTTPException(status_code=403, detail="Access denied")
 
     items_data = read_csv_data(LEARNING_PATH_ITEMS_CSV)
-    
+
     # Get current max order_index for the folder
     folder_items = [item for item in items_data if item['folder_id'] == request.folder_id]
     max_order = max([int(item.get('order_index', 0)) for item in folder_items]) if folder_items else 0
-    
+
     # Add each item from the generated path
     for i, item in enumerate(request.generated_path.items):
         item_id = str(uuid.uuid4())
@@ -815,7 +819,7 @@ async def add_generated_path_to_folder(
             'id': item_id,
             'folder_id': request.folder_id,
             'user_id': current_user.id,
-            'title': item.title,
+            'title':item.title,
             'description': item.description,
             'completed': 'False',
             'resources': ','.join(item.resources),
@@ -823,11 +827,11 @@ async def add_generated_path_to_folder(
             'order_index': str(max_order + i + 1),
             'created_at': datetime.utcnow().isoformat()
         })
-    
+
     write_csv_data(LEARNING_PATH_ITEMS_CSV, items_data,
                   ['id', 'folder_id', 'user_id', 'title', 'description', 'completed', 
                    'resources', 'estimated_hours', 'order_index', 'created_at'])
-    
+
     return {"message": "Learning path added successfully", "items_added": len(request.generated_path.items)}
 
 @app.get("/learning/paths")
@@ -838,7 +842,7 @@ async def get_learning_paths(current_user: User = Depends(get_current_user)):
     # Return both old format paths and new folder-based structure
     paths_data = read_csv_data(LEARNING_PATHS_CSV)
     folders_data = read_csv_data(LEARNING_FOLDERS_CSV)
-    
+
     # Legacy paths
     paths = []
     for path in paths_data:
@@ -851,10 +855,10 @@ async def get_learning_paths(current_user: User = Depends(get_current_user)):
             "difficulty": path['difficulty'],
             "skills": path['skills'].split(',') if path['skills'] else []
         })
-    
+
     # New folder-based structure
     user_folders = [folder for folder in folders_data if folder['user_id'] == current_user.id]
-    
+
     return {"paths": paths, "folders": len(user_folders)}
 
 # Job endpoints

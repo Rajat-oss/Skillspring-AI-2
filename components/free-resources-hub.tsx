@@ -36,9 +36,9 @@ import {
   Palette,
   Smartphone,
   BookmarkCheck,
-  BookmarkPlus,
-  Slider
+  BookmarkPlus
 } from "lucide-react"
+import { Slider } from "@/components/ui/slider"
 import { useAuth } from "@/components/auth-provider"
 import { useToast } from "@/hooks/use-toast"
 
@@ -734,9 +734,12 @@ export function FreeResourcesHub() {
 
       {/* Content Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4 bg-gray-900/50">
+        <TabsList className="grid w-full grid-cols-5 bg-gray-900/50">
           <TabsTrigger value="all" className="data-[state=active]:bg-blue-600">
             All Resources ({resources.length})
+          </TabsTrigger>
+          <TabsTrigger value="trending" className="data-[state=active]:bg-orange-600">
+            Trending ({resources.filter(r => r.trending).length})
           </TabsTrigger>
           <TabsTrigger value="recommended" className="data-[state=active]:bg-green-600">
             AI Recommended ({recommendations.length})
@@ -764,6 +767,25 @@ export function FreeResourcesHub() {
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+
+        <TabsContent value="trending" className="space-y-6">
+          <div className="mb-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-orange-400">🔥 Trending Now</h3>
+              <Badge variant="outline" className="text-orange-400 border-orange-400">
+                Live Updates
+              </Badge>
+            </div>
+            <p className="text-sm text-gray-400 mt-1">
+              Most popular and highly-rated content from across the web
+            </p>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+            {resources.filter(r => r.trending || r.rating >= 4.7).map((resource) => (
+              <ResourceCard key={resource.id} resource={resource} />
+            ))}
+          </div>
         </TabsContent>
 
         <TabsContent value="recommended" className="space-y-6">

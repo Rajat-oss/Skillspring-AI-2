@@ -41,6 +41,7 @@ import { ResumeUpload } from "@/components/resume-upload"
 import { CertificateTracker } from "@/components/certificate-tracker"
 import { FreeResourcesHub } from "@/components/free-resources-hub"
 import { LearningFoldersManager } from "@/components/learning-folders-manager"
+import { AppliedApplicationsTracker } from "@/components/applied-applications-tracker"
 import { useToast } from "@/hooks/use-toast"
 
 interface LearningPath {
@@ -160,7 +161,7 @@ export function IndividualDashboard() {
 
   const fetchLiveOpportunities = async () => {
     if (!user) return
-    
+
     setOpportunitiesLoading(true)
     try {
       const token = localStorage.getItem('token')
@@ -173,7 +174,7 @@ export function IndividualDashboard() {
       if (response.ok) {
         const data = await response.json()
         setLiveOpportunities(data)
-        
+
         toast({
           title: "Opportunities Updated!",
           description: `Found ${data.total_count?.jobs || 0} jobs, ${data.total_count?.internships || 0} internships, and ${data.total_count?.hackathons || 0} hackathons`,
@@ -343,17 +344,17 @@ What would you like to explore today? 🚀`,
   useEffect(() => {
     const fetchDashboardData = async () => {
       if (!user) return;
-      
+
       try {
         const token = localStorage.getItem('token')
-        
+
         // Fetch learning paths from backend
         const learningResponse = await fetch('/api/learning/paths', {
           headers: {
             'Authorization': `Bearer ${token}`
           }
         })
-        
+
         // Fetch job recommendations from backend
         const jobsResponse = await fetch('/api/jobs/recommendations', {
           headers: {
@@ -376,7 +377,7 @@ What would you like to explore today? 🚀`,
                    path.progress === 100 ? 'completed' : 'in_progress'
           }))
           setLearningPaths(formattedPaths)
-          
+
           // Calculate average progress
           const avgProgress = Math.round(
             formattedPaths.reduce((acc: number, path: any) => acc + path.progress, 0) / formattedPaths.length
@@ -415,7 +416,7 @@ What would you like to explore today? 🚀`,
 
       } catch (error) {
         console.error('Error fetching dashboard data:', error)
-        
+
         // Fallback to mock data if API fails
         const fallbackPaths: LearningPath[] = [
           {
@@ -451,7 +452,7 @@ What would you like to explore today? 🚀`,
       fetchDashboardData()
       fetchLiveOpportunities()
       const interval = setupRealTimeUpdates()
-      
+
       return () => clearInterval(interval)
     }
   }, [user])
@@ -637,9 +638,9 @@ What would you like to explore today? 🚀`,
               <BookOpen className="w-4 h-4 mr-2" />
               Learning
             </TabsTrigger>
-            <TabsTrigger value="jobs" className="data-[state=active]:bg-purple-600">
+            <TabsTrigger value="applications" className="data-[state=active]:bg-purple-600">
               <Briefcase className="w-4 h-4 mr-2" />
-              Jobs & Internships
+              Applied Applications
             </TabsTrigger>
             <TabsTrigger value="live-opportunities" className="data-[state=active]:bg-pink-600">
               <Zap className="w-4 h-4 mr-2" />
@@ -818,91 +819,9 @@ What would you like to explore today? 🚀`,
             </Tabs>
           </TabsContent>
 
-          {/* Enhanced Jobs Tab */}
-          <TabsContent value="jobs" className="space-y-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold">Jobs & Internships</h2>
-              <div className="flex items-center space-x-2">
-                <Badge variant="outline">
-                  {jobRecommendations.filter(j => j.type === 'job').length} Jobs
-                </Badge>
-                <Badge variant="outline">
-                  {jobRecommendations.filter(j => j.type === 'internship').length} Internships
-                </Badge>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {jobRecommendations.map((job) => (
-                <Card key={job.id} className="bg-gray-900/50 border-gray-700 hover:border-purple-600 transition-colors">
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <CardTitle className="text-lg">{job.title}</CardTitle>
-                        <Badge variant={job.type === 'internship' ? 'secondary' : 'default'}>
-                          {job.type}
-                        </Badge>
-                      </div>
-                      <Badge className="bg-green-600">
-                        {job.match}% Match
-                      </Badge>
-                    </div>
-                    <CardDescription className="flex items-center space-x-4">
-                      <span>{job.company}</span>
-                      <span className="flex items-center">
-                        <MapPin className="w-3 h-3 mr-1" />
-                        {job.location}
-                      </span>
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex items-center text-lg font-semibold text-green-400">
-                      <DollarSign className="w-4 h-4 mr-1" />
-                      {job.salary}
-                    </div>
-
-                    <div className="flex flex-wrap gap-2">
-                      {job.skills.map((skill) => (
-                        <Badge key={skill} variant="outline" className="text-xs">
-                          {skill}
-                        </Badge>
-                      ))}
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-400 flex items-center">
-                        Via {job.platform}
-                        {job.applied && (
-                          <span className="ml-2 text-green-400 flex items-center">
-                            <ThumbsUp className="w-3 h-3 mr-1" />
-                            Applied
-                          </span>
-                        )}
-                      </span>
-                      <div className="flex space-x-2">
-                        <Button size="sm" variant="outline">
-                          View Details
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          className="bg-purple-600 hover:bg-purple-700"
-                          onClick={() => handleJobApply(job.id)}
-                          disabled={job.applied}
-                        >
-                          {job.applied ? 'Applied' : 'Apply Now'}
-                        </Button>
-                      </div>
-                    </div>
-
-                    {job.applied && job.appliedAt && (
-                      <p className="text-xs text-gray-500">
-                        Applied on {new Date(job.appliedAt).toLocaleDateString()}
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+          {/* Applied Applications Tab */}
+          <TabsContent value="applications" className="space-y-6">
+            <AppliedApplicationsTracker />
           </TabsContent>
 
           {/* Resume Tab */}
@@ -976,7 +895,7 @@ What would you like to explore today? 🚀`,
                             {job.salary}
                           </div>
                         )}
-                        
+
                         <div className="flex flex-wrap gap-1">
                           {job.tags.slice(0, 4).map((tag) => (
                             <Badge key={tag} variant="outline" className="text-xs">
@@ -1043,7 +962,7 @@ What would you like to explore today? 🚀`,
                             {internship.salary}
                           </div>
                         )}
-                        
+
                         <div className="flex flex-wrap gap-1">
                           {internship.tags.slice(0, 4).map((tag) => (
                             <Badge key={tag} variant="outline" className="text-xs">
@@ -1105,7 +1024,7 @@ What would you like to explore today? 🚀`,
                             Prize: {hackathon.prize_money}
                           </div>
                         )}
-                        
+
                         <div className="flex flex-wrap gap-1">
                           {hackathon.tags.slice(0, 4).map((tag) => (
                             <Badge key={tag} variant="outline" className="text-xs">
