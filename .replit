@@ -17,7 +17,7 @@ mode = "parallel"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd backend && python main.py"
+args = "cd backend && python run.py"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
