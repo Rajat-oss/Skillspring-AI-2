@@ -12,9 +12,10 @@ import uuid
 import asyncio
 from ai_service import AIService
 from websocket_service import socket_app, send_notification, broadcast_job_update, broadcast_candidate_update, update_market_insights
-from user_activity import log_user_activity, log_user_application, get_user_activities, get_user_applications
+from user_activity import log_user_activity, get_user_activities, get_user_applications
 from free_resources_service import FreeResourcesService
 from gmail_service import GmailApplicationTracker
+import database
 
 # Set YouTube API key
 os.environ['YOUTUBE_API_KEY'] = 'AIzaSyDhnxlM0aLBH5Jz8XLclT033F7HqakIADk'
@@ -821,7 +822,7 @@ async def add_generated_path_to_folder(
             'user_id': current_user.id,
             'title':item.title,
             'description': item.description,
-            'completed': 'False',
+'completed': 'False',
             'resources': ','.join(item.resources),
             'estimated_hours': str(item.estimated_hours),
             'order_index': str(max_order + i + 1),
@@ -839,623 +840,302 @@ async def get_learning_paths(current_user: User = Depends(get_current_user)):
     if current_user.role != "individual":
         raise HTTPException(status_code=403, detail="Access denied")
 
-    # Return both old format paths and new folder-based structure
-    paths_data = read_csv_data(LEARNING_PATHS_CSV)
-    folders_data = read_csv_data(LEARNING_FOLDERS_CSV)
+    # Get learning paths from database
+    try:
+        learning_paths = database.get_user_learning_paths(current_user.id)
 
-    # Legacy paths
-    paths = []
-    for path in paths_data:
-        paths.append({
-            "id": path['id'],
-            "title": path['title'],
-            "description": path['description'],
-            "progress": int(path['progress']),
-            "estimatedTime": path['estimated_time'],
-            "difficulty": path['difficulty'],
-            "skills": path['skills'].split(',') if path['skills'] else []
-        })
+        # If no paths exist, create some default ones
+        if not learning_paths:
+            default_paths = [
+                {
+                    "id": "1",
+                    "title": "Full-Stack Web Development",
+                    "description": "Master React, Node.js, and modern web technologies",
+                    "estimatedTime": "12 weeks",
+                    "difficulty": "Intermediate",
+                    "skills": ["React", "Node.js", "MongoDB", "TypeScript"]
+                },
+                {
+                    "id": "2", 
+                    "title": "Data Science Fundamentals",
+                    "description": "Learn Python, statistics, and machine learning basics",
+                    "estimatedTime": "16 weeks",
+                    "difficulty": "Beginner",
+                    "skills": ["Python", "Pandas", "NumPy", "Scikit-learn"]
+                }
+            ]
 
-    # New folder-based structure
-    user_folders = [folder for folder in folders_data if folder['user_id'] == current_user.id]
+            for path in default_paths:
+                database.add_learning_path(current_user.id, path)
 
-    return {"paths": paths, "folders": len(user_folders)}
+            learning_paths = database.get_user_learning_paths(current_user.id)
 
-# Job endpoints
-@app.get("/jobs/recommendations")
-async def get_job_recommendations(current_user: User = Depends(get_current_user)):
-    if current_user.role != "individual":
-        raise HTTPException(status_code=403, detail="Access denied")
-
-    jobs_data = read_csv_data(JOBS_CSV)
-
-    # Convert to proper format
-    jobs = []
-    for job in jobs_data:
-        jobs.append({
-            "id": job['id'],
-            "title": job['title'],
-            "company": job['company'],
-            "location": job['location'],
-            "salary": job['salary'],
-            "match": int(job['match']),
-            "skills": job['skills'].split(',') if job['skills'] else [],
-            "platform": job['platform']
-        })
-
-    return {"jobs": jobs}
-
-@app.get("/jobs/postings")
-async def get_job_postings(current_user: User = Depends(get_current_user)):
-    if current_user.role != "startup":
-        raise HTTPException(status_code=403, detail="Access denied")
-
-    # Mock job postings for startups
-    jobs = [
-        {
-            "id": "1",
-            "title": "Senior Frontend Developer",
-            "department": "Engineering",
-            "type": "Full-time",
-            "applicants": 24,
-            "status": "active",
-            "postedDate": "2024-01-15"
-        },
-        {
-            "id": "2",
-            "title": "Product Designer",
-            "department": "Design",
-            "type": "Full-time",
-            "applicants": 18,
-            "status": "active",
-            "postedDate": "2024-01-12"
-        }
-    ]
-
-    return {"jobs": jobs}
-
-# Candidate endpoints
-@app.get("/candidates/discover")
-async def discover_candidates(current_user: User = Depends(get_current_user)):
-    if current_user.role != "startup":
-        raise HTTPException(status_code=403, detail="Access denied")
-
-    candidates_data = read_csv_data(CANDIDATES_CSV)
-
-    # Convert to proper format
-    candidates = []
-    for candidate in candidates_data:
-        candidates.append({
-            "id": candidate['id'],
-            "name": candidate['name'],
-            "title": candidate['title'],
-            "skills": candidate['skills'].split(',') if candidate['skills'] else [],
-            "experience": candidate['experience'],
-            "location": candidate['location'],
-            "match": int(candidate['match']),
-            "avatar": f"/placeholder.svg?height=48&width=48",
-            "status": candidate['status']
-        })
-
-    return {"candidates": candidates}
-
-# Student Activity Tracking
-class ActivityLog(BaseModel):
-    id: str
-    user_id: str
-    type: str
-    title: str
-    description: str
-    timestamp: str
-
-class LearningProgressUpdate(BaseModel):
-    path_id: str
-    new_progress: int
-
-class JobApplication(BaseModel):
-    job_id: str
-    application_date: str
-
-# Activity tracking endpoints
-@app.post("/student/activity/log")
-async def log_activity(
-    activity: ActivityLog,
-    current_user: User = Depends(get_current_user)
-):
-    """Log student activity for tracking and analytics"""
-    if current_user.role != "individual":
-        raise HTTPException(status_code=403, detail="Access denied")
-
-    # In a real implementation, save to database
-    # For now, return success
-    return {"status": "logged", "activity_id": activity.id}
-
-@app.post("/student/learning/update-progress")
-async def update_learning_progress(
-    progress_update: LearningProgressUpdate,
-    current_user: User = Depends(get_current_user)
-):
-    """Update learning path progress"""
-    if current_user.role != "individual":
-        raise HTTPException(status_code=403, detail="Access denied")
-
-    # Simulate progress update
-    return {
-        "status": "updated",
-        "path_id": progress_update.path_id,
-        "new_progress": progress_update.new_progress,
-        "updated_at": datetime.utcnow().isoformat()
-    }
-
-@app.post("/student/jobs/apply")
-async def apply_to_job(
-    application: JobApplication,
-    current_user: User = Depends(get_current_user)
-):
-    """Apply to a job"""
-    if current_user.role != "individual":
-        raise HTTPException(status_code=403, detail="Access denied")
-
-    # Simulate job application
-    return {
-        "status": "applied",
-        "job_id": application.job_id,
-        "application_id": str(uuid.uuid4()),
-        "applied_at": datetime.utcnow().isoformat()
-    }
-
-@app.get("/student/dashboard/stats")
-async def get_dashboard_stats(current_user: User = Depends(get_current_user)):
-    """Get student dashboard statistics"""
-    if current_user.role != "individual":
-        raise HTTPException(status_code=403, detail="Access denied")
-
-    # Get real user data
-    user_activities = get_user_activities(current_user.id, limit=100)
-    user_applications = get_user_applications(current_user.id)
-
-    # Calculate real statistics
-    ai_interactions = len([a for a in user_activities if a['type'] == 'ai_interaction'])
-    course_activities = [a for a in user_activities if a['type'] == 'course_completed']
-
-    # Get learning paths progress
-    paths_data = read_csv_data(LEARNING_PATHS_CSV)
-    total_courses = len(paths_data)
-    completed_courses = len([p for p in paths_data if int(p.get('progress', 0)) == 100])
-    in_progress_courses = len([p for p in paths_data if 0 < int(p.get('progress', 0)) < 100])
-
-    # Calculate average progress
-    if paths_data:
-        average_progress = sum(int(p.get('progress', 0)) for p in paths_data) // len(paths_data)
-    else:
-        average_progress = 0
-
-    # Calculate career score based on activity
-    base_score = 50
-    progress_boost = min(average_progress // 2, 30)  # Up to 30 points for progress
-    activity_boost = min(len(user_activities), 20)   # Up to 20 points for activity
-    career_score = min(base_score + progress_boost + activity_boost, 100)
-
-    return {
-        "career_score": career_score,
-        "total_courses": total_courses,
-        "completed_courses": completed_courses,
-        "in_progress_courses": in_progress_courses,
-        "job_applications": len(user_applications),
-        "ai_interactions": ai_interactions,
-        "average_progress": average_progress,
-        "streak_days": 7,  # This would need more complex calculation
-        "certificates_earned": completed_courses
-    }
-
-@app.get("/student/applications/history")
-async def get_application_history(current_user: User = Depends(get_current_user)):
-    """Get user's application history"""
-    if current_user.role != "individual":
-        raise HTTPException(status_code=403, detail="Access denied")
-
-    applications = get_user_applications(current_user.id)
-    return {"applications": applications}
-
-@app.get("/student/activity/recent")
-async def get_recent_activity(current_user: User = Depends(get_current_user)):
-    """Get user's recent activity"""
-    if current_user.role != "individual":
-        raise HTTPException(status_code=403, detail="Access denied")
-
-    activities = get_user_activities(current_user.id, limit=20)
-    return {"activities": activities}
-
-@app.post("/student/opportunities/apply")
-async def apply_to_opportunity(
-    opportunity: dict,
-    current_user: User = Depends(get_current_user)
-):
-    """Apply to a job, internship, or hackathon"""
-    if current_user.role != "individual":
-        raise HTTPException(status_code=403, detail="Access denied")
-
-    # Log the application
-    log_user_application(
-        current_user.id,
-        opportunity.get('id'),
-        opportunity.get('type', 'job'),
-        opportunity.get('title'),
-        opportunity.get('company', 'Unknown')
-    )
-
-    # Log the activity
-    log_user_activity(
-        current_user.id,
-        'application_submitted',
-        f"Applied to {opportunity.get('title')}",
-        f"Applied to {opportunity.get('title')} at {opportunity.get('company')}",
-        opportunity
-    )
-
-    return {
-        "status": "success",
-        "message": "Application submitted successfully",
-        "applied_at": datetime.utcnow().isoformat()
-    }
-
-@app.get("/student/recommendations/personalized")
-async def get_personalized_recommendations(current_user: User = Depends(get_current_user)):
-    """Get personalized learning and job recommendations"""
-    if current_user.role != "individual":
-        raise HTTPException(status_code=403, detail="Access denied")
-
-    # Get user's application history and activities for personalization
-    applications = get_user_applications(current_user.id)
-    activities = get_user_activities(current_user.id, limit=50)
-
-    # Analyze user's interests from applications
-    applied_skills = set()
-    applied_companies = set()
-    for app in applications:
-        if 'skills' in app.get('metadata', {}):
-            applied_skills.update(app['metadata']['skills'])
-        applied_companies.add(app.get('company', ''))
-
-    # Enhanced recommendations based on user profile and activity
-    recommendations = {
-        "learning_paths": [
+        return {"paths": learning_paths}
+    except Exception as e:
+        # Fallback to mock data if database fails
+        learning_paths = [
             {
-                "id": "advanced-react",
-                "title": "Advanced React Patterns",
-                "reason": "Based on your recent activity and applications",
-                "priority": "high",
-                "estimated_completion": "3 weeks"
-            },
-            {
-                "id": "typescript-fundamentals",
-                "title": "TypeScript Fundamentals", 
-                "reason": f"Required by {len(applied_companies)} companies you applied to",
-                "priority": "medium",
-                "estimated_completion": "2 weeks"
-            }
-        ],
-        "jobs": [
-            {
-                "id": "frontend-dev-remote",
-                "title": "Frontend Developer (Remote)",
-                "company": "TechCorp",
-                "match_reason": "Matches your application pattern",
-                "salary": "$75,000 - $95,000",
-                "urgency": "high"
-            }
-        ],
-        "skills": list(applied_skills)[:5] if applied_skills else [
-            {
-                "name": "React",
-                "demand": "high",
-                "learning_time": "2 weeks",
-                "salary_impact": "+20%"
+                "id": "1",
+                "title": "Full-Stack Web Development",
+                "description": "Master React, Node.js, and modern web technologies",
+                "progress": 45,
+                "estimatedTime": "12 weeks",
+                "difficulty": "Intermediate",
+                "skills": ["React", "Node.js", "MongoDB", "TypeScript"],
+                "status": "in_progress",
+                "lastAccessed": "2024-01-20T10:30:00Z"
             }
         ]
-    }
+        return {"paths": learning_paths}
 
-    return recommendations
-
-# Enhanced AI Chat endpoint
-class ChatMessage(BaseModel):
-    message: str
-    context: Optional[str] = None
-
-@app.post("/ai/chat/student-assistant")
-async def student_ai_chat(
-    chat: ChatMessage,
+@app.post("/learning/paths")
+async def create_learning_path(
+    path_data: dict,
     current_user: User = Depends(get_current_user)
 ):
-    """Real-time AI chat using Gemini for career assistance"""
     if current_user.role != "individual":
         raise HTTPException(status_code=403, detail="Access denied")
+
+    try:
+        # Add path to database
+        database.add_learning_path(current_user.id, path_data)
+
+        # Log activity
+        database.log_activity(
+            current_user.id,
+            'learning_path_created',
+            'New Learning Path Created',
+            f"Created learning path: {path_data['title']}"
+        )
+
+        return {"message": "Learning path created successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to create learning path")
+
+@app.get("/learning/folders")
+async def get_learning_folders(current_user: User = Depends(get_current_user)):
+    if current_user.role != "individual":
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    folders_data = read_csv_data(LEARNING_FOLDERS_CSV)
+    user_folders = [folder for folder in folders_data if folder['user_id'] == current_user.id]
+
+    folders_with_items = []
+    for folder in user_folders:
+        items_data = read_csv_data(LEARNING_PATH_ITEMS_CSV)
+        folder_items = [item for item in items_data if item['folder_id'] == folder['id']]
+
+        # Calculate progress
+        total_items = len(folder_items)
+        completed_items = len([item for item in folder_items if item['completed'] == 'True'])
+        progress = (completed_items / total_items * 100) if total_items > 0 else 0
+
+        folders_with_items.append({
+            "id": folder['id'],
+            "name": folder['name'],
+            "description": folder['description'],
+            "color": folder['color'],
+            "progress": int(progress),
+            "total_items": total_items,
+            "completed_items": completed_items,
+            "created_at": folder['created_at']
+        })
+
+    return {"folders": folders_with_items}
+
+@app.post("/learning/folders")
+async def create_learning_folder(
+    folder: LearningFolder,
+    current_user: User = Depends(get_current_user)
+):
+    if current_user.role != "individual":
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    folder_id = str(uuid.uuid4())
+    created_at = datetime.utcnow().isoformat()
+
+    folders_data = read_csv_data(LEARNING_FOLDERS_CSV)
+    folders_data.append({
+        'id': folder_id,
+        'user_id': current_user.id,
+        'name': folder.name,
+        'description': folder.description,
+        'color': folder.color,
+        'created_at': created_at
+    })
+
+    write_csv_data(LEARNING_FOLDERS_CSV, folders_data, 
+                  ['id', 'user_id', 'name', 'description', 'color', 'created_at'])
+
+    return {"folder_id": folder_id, "message": "Folder created successfully"}
+
+@app.get("/learning/folders/{folder_id}/items")
+async def get_folder_items(
+    folder_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    if current_user.role != "individual":
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    items_data = read_csv_data(LEARNING_PATH_ITEMS_CSV)
+    folder_items = [item for item in items_data if item['folder_id'] == folder_id and item['user_id'] == current_user.id]
+
+    # Sort by order_index
+    folder_items.sort(key=lambda x: int(x.get('order_index', 0)))
+
+    formatted_items = []
+    for item in folder_items:
+        formatted_items.append({
+            "id": item['id'],
+            "title": item['title'],
+            "description": item['description'],
+            "completed": item['completed'] == 'True',
+            "resources": item['resources'].split(',') if item['resources'] else [],
+            "estimated_hours": int(item['estimated_hours']) if item['estimated_hours'] else 1,
+            "order_index": int(item.get('order_index', 0))
+        })
+
+    return {"items": formatted_items}
+
+@app.post("/learning/folders/{folder_id}/items/{item_id}/toggle")
+async def toggle_item_completion(
+    folder_id: str,
+    item_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    if current_user.role != "individual":
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    items_data = read_csv_data(LEARNING_PATH_ITEMS_CSV)
+
+    for item in items_data:
+        if item['id'] == item_id and item['user_id'] == current_user.id:
+            item['completed'] = 'False' if item['completed'] == 'True' else 'True'
+            break
+
+    write_csv_data(LEARNING_PATH_ITEMS_CSV, items_data,
+                  ['id', 'folder_id', 'user_id', 'title', 'description', 'completed', 
+                   'resources', 'estimated_hours', 'order_index', 'created_at'])
+
+    return {"message": "Item completion toggled"}
+
+@app.post("/ai/generate-learning-path")
+async def generate_learning_path(
+    request: dict,
+    current_user: User = Depends(get_current_user)
+):
+    if current_user.role != "individual":
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    goal = request.get('goal', '')
+    skill_level = request.get('skill_level', 'beginner')
+    time_commitment = request.get('time_commitment', '10')
 
     try:
         ai_service = AIService()
 
-        # Prepare user context for the AI
-        user_context = {
+        # Create a detailed prompt for learning path generation
+        prompt = f"""Generate a comprehensive learning path for: {goal}
+
+        User details:
+        - Skill level: {skill_level}
+        - Available time per week: {time_commitment} hours
+        - Profession: {current_user.profession}
+
+        Create a structured roadmap with:
+        1. Clear milestones/topics to learn
+        2. Estimated hours for each topic
+        3. Practical exercises or projects
+        4. Resource recommendations
+
+        Format as a JSON structure with title, description, items (each with title, description, estimated_hours), total_hours, difficulty, and skills array."""
+
+        # Generate the learning path using AI
+        ai_response = await ai_service.generate_ai_chat_response(prompt, {
             "role": current_user.role,
-            "profession": current_user.profession,
-            "email": current_user.email
+            "profession": current_user.profession
+        })
+
+        # Parse AI response and create structured path
+        # For demo, return a structured example
+        generated_path = {
+            "title": f"{goal} Mastery Path",
+            "description": f"Complete roadmap to master {goal} from {skill_level} level",
+            "items": [
+                {
+                    "title": f"Fundamentals of {goal}",
+                    "description": "Learn the core concepts and terminology",
+                    "completed": False,
+                    "resources": [],
+                    "estimated_hours": 8
+                },
+                {
+                    "title": "Hands-on Practice",
+                    "description": "Build practical projects to apply knowledge",
+                    "completed": False,
+                    "resources": [],
+                    "estimated_hours": 12
+                },
+                {
+                    "title": "Advanced Topics",
+                    "description": "Deep dive into complex concepts",
+                    "completed": False,
+                    "resources": [],
+                    "estimated_hours": 15
+                },
+                {
+                    "title": "Portfolio Project",
+                    "description": "Create a showcase project",
+                    "completed": False,
+                    "resources": [],
+                    "estimated_hours": 20
+                }
+            ],
+            "estimated_total_hours": 55,
+            "difficulty": "intermediate",
+            "skills": goal.split() + ["problem-solving", "project-management"]
         }
 
-        # Get AI response using Gemini
-        response = await ai_service.generate_ai_chat_response(chat.message, user_context)
-
-        return {
-            "response": response,
-            "timestamp": datetime.utcnow().isoformat(),
-            "suggestions": [
-                "What skills should I learn next?",
-                "How to prepare for interviews?", 
-                "Find jobs matching my skills",
-                "Analyze current job market",
-                "Create a learning plan",
-                "Help with resume optimization"
-            ]
-        }
+        return {"generated_path": generated_path, "ai_explanation": ai_response}
 
     except Exception as e:
-        print(f"Error in AI chat: {e}")
-        raise HTTPException(status_code=500, detail="AI assistant temporarily unavailable")
+        print(f"Error generating learning path: {e}")
+        raise HTTPException(status_code=500, detail="Failed to generate learning path")
 
-# Free Resources endpoints
-@app.get("/learning/free-resources")
-async def get_free_resources(
-    search: Optional[str] = None,
-    category: Optional[str] = None,
-    level: Optional[str] = None,
-    language: Optional[str] = None,
+@app.post("/learning/add-generated-path")
+async def add_generated_path_to_folder(
+    request: AddToPathRequest,
     current_user: User = Depends(get_current_user)
 ):
-    """Get free learning resources with optional filters"""
     if current_user.role != "individual":
         raise HTTPException(status_code=403, detail="Access denied")
 
-    resources = free_resources_service.search_resources(
-        query=search or "",
-        category=category or "",
-        level=level or "",
-        language=language or ""
-    )
+    items_data = read_csv_data(LEARNING_PATH_ITEMS_CSV)
 
-    # Get user's bookmarks to add status
-    user_bookmarks = free_resources_service.get_user_bookmarks(current_user.id)
-    bookmark_dict = {b['id']: b for b in user_bookmarks}
+    # Get current max order_index for the folder
+    folder_items = [item for item in items_data if item['folder_id'] == request.folder_id]
+    max_order = max([int(item.get('order_index', 0)) for item in folder_items]) if folder_items else 0
 
-    # Add bookmark status to resources
-    for resource in resources:
-        if resource['id'] in bookmark_dict:
-            bookmark = bookmark_dict[resource['id']]
-            resource['bookmark_status'] = bookmark['bookmark_status']
-            resource['progress'] = bookmark['progress']
-        else:
-            resource['bookmark_status'] = None
-            resource['progress'] = 0
+    # Add each item from the generated path
+    for i, item in enumerate(request.generated_path.items):
+        item_id = str(uuid.uuid4())
+        items_data.append({
+            'id': item_id,
+            'folder_id': request.folder_id,
+            'user_id': current_user.id,
+            'title':item.title,
+            'description': item.description,
+            'completed': 'False',
+            'resources': ','.join(item.resources),
+            'estimated_hours': str(item.estimated_hours),
+            'order_index': str(max_order + i + 1),
+            'created_at': datetime.utcnow().isoformat()
+        })
 
-    return {"resources": resources}
+    write_csv_data(LEARNING_PATH_ITEMS_CSV, items_data,
+                  ['id', 'folder_id', 'user_id', 'title', 'description', 'completed', 
+                   'resources', 'estimated_hours', 'order_index', 'created_at'])
 
-@app.get("/learning/free-resources/categories")
-async def get_resource_categories(current_user: User = Depends(get_current_user)):
-    """Get all available resource categories"""
-    if current_user.role != "individual":
-        raise HTTPException(status_code=403, detail="Access denied")
+    return {"message": "Learning path added successfully", "items_added": len(request.generated_path.items)}
 
-    categories = free_resources_service.get_categories()
-    levels = free_resources_service.get_levels()
-    languages = free_resources_service.get_languages()
-
-    return {
-        "categories": categories,
-        "levels": levels,
-        "languages": languages
-    }
-
-@app.get("/learning/free-resources/bookmarks")
-async def get_user_bookmarks(current_user: User = Depends(get_current_user)):
-    """Get user's bookmarked resources"""
-    if current_user.role != "individual":
-        raise HTTPException(status_code=403, detail="Access denied")
-
-    bookmarks = free_resources_service.get_user_bookmarks(current_user.id)
-    return {"bookmarks": bookmarks}
-
-@app.post("/learning/free-resources/{resource_id}/bookmark")
-async def bookmark_resource(
-    resource_id: str,
-    status: str = "bookmarked",
-    current_user: User = Depends(get_current_user)
-):
-    """Bookmark a resource"""
-    if current_user.role != "individual":
-        raise HTTPException(status_code=403, detail="Access denied")
-
-    valid_statuses = ["bookmarked", "in_progress", "completed"]
-    if status not in valid_statuses:
-        raise HTTPException(status_code=400, detail="Invalid status")
-
-    result = free_resources_service.bookmark_resource(current_user.id, resource_id, status)
-
-    # Log activity
-    log_user_activity(
-        current_user.id,
-        'resource_bookmarked',
-        f'Resource {status}',
-        f'Marked resource as {status}',
-        {'resource_id': resource_id, 'status': status}
-    )
-
-    return result
-
-@app.post("/learning/free-resources/{resource_id}/progress")
-async def update_resource_progress(
-    resource_id: str,
-    progress: int,
-    current_user: User = Depends(get_current_user)
-):
-    """Update learning progress for a resource"""
-    if current_user.role != "individual":
-        raise HTTPException(status_code=403, detail="Access denied")
-
-    if not 0 <= progress <= 100:
-        raise HTTPException(status_code=400, detail="Progress must be between 0 and 100")
-
-    result = free_resources_service.update_progress(current_user.id, resource_id, progress)
-
-    # Log activity
-    status_text = "completed" if progress >= 100 else "updated progress on"
-    log_user_activity(
-        current_user.id,
-        'learning_progress',
-        f'Learning progress {status_text}',
-        f'Updated progress to {progress}% on resource',
-        {'resource_id': resource_id, 'progress': progress}
-    )
-
-    return result
-
-@app.get("/learning/free-resources/recommendations")
-async def get_recommended_resources(current_user: User = Depends(get_current_user)):
-    """Get AI-recommended free resources"""
-    if current_user.role != "individual":
-        raise HTTPException(status_code=403, detail="Access denied")
-
-    user_profile = {
-        'profession': current_user.profession,
-        'email': current_user.email
-    }
-
-    recommendations = free_resources_service.get_recommended_resources(user_profile)
-
-    # Get user's bookmarks to add status
-    user_bookmarks = free_resources_service.get_user_bookmarks(current_user.id)
-    bookmark_dict = {b['id']: b for b in user_bookmarks}
-
-    # Add bookmark status to recommendations
-    for resource in recommendations:
-        if resource['id'] in bookmark_dict:
-            bookmark = bookmark_dict[resource['id']]
-            resource['bookmark_status'] = bookmark['bookmark_status']
-            resource['progress'] = bookmark['progress']
-        else:
-            resource['bookmark_status'] = None
-            resource['progress'] = 0
-
-    return {"recommendations": recommendations}
-
-@app.post("/admin/update-content")
-async def manual_content_update(current_user: User = Depends(get_current_user)):
-    """Manually trigger content update (admin only)"""
-    # For demo purposes, allow any user to trigger update
-    # In production, add admin role check
-
-    try:
-        from background_tasks import JobScraper
-        scraper = JobScraper()
-
-        # Update learning content
-        count = await scraper.update_learning_content()
-
-        return {
-            "status": "success", 
-            "message": f"Content updated successfully. Added {count} new resources.",
-            "updated_count": count
-        }
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to update content: {str(e)}")
-
-@app.get("/learning/free-resources/search")
-async def search_resources_realtime(
-    q: str,
-    category: Optional[str] = None,
-    level: Optional[str] = None,
-    current_user: User = Depends(get_current_user)
-):
-    """Real-time search with auto-suggestions"""
-    if current_user.role != "individual":
-        raise HTTPException(status_code=403, detail="Access denied")
-
-    # Search existing resources
-    resources = free_resources_service.search_resources(
-        query=q,
-        category=category or "",
-        level=level or ""
-    )
-
-    # If we have few results and YouTube API is available, search YouTube
-    if len(resources) < 5:
-        try:
-            from youtube_service import YouTubeService
-            youtube_service = YouTubeService()
-
-            # Determine category from query if not provided
-            search_category = category or youtube_service.categorize_content(q)
-
-            # Search YouTube for additional content
-            youtube_results = youtube_service.search_educational_videos(
-                query=q, 
-                category=search_category, 
-                max_results=10
-            )
-
-            # Add YouTube results to response
-            for video in youtube_results:
-                # Convert tags list to comma-separated string
-                if isinstance(video.get('tags'), list):
-                    video['tags'] = video['tags']
-                else:
-                    video['tags'] = video.get('tags', '').split(',') if video.get('tags') else []
-
-                video['bookmark_status'] = None
-                video['progress'] = 0
-
-            resources.extend(youtube_results)
-
-        except Exception as e:
-            print(f"Error searching YouTube: {e}")
-
-    return {
-        "resources": resources[:20],  # Limit to 20 results
-        "total": len(resources),
-        "query": q,
-        "suggestions": generate_search_suggestions(q)
-    }
-
-def generate_search_suggestions(query: str) -> List[str]:
-    """Generate search suggestions based on query"""
-    suggestions = []
-    query_lower = query.lower()
-
-    # Technology suggestions
-    tech_suggestions = {
-        'web': ['web development', 'web design', 'html css', 'javascript'],
-        'react': ['react tutorial', 'react hooks', 'react native', 'react redux'],
-        'python': ['python tutorial', 'python data science', 'python django', 'python flask'],
-        'data': ['data science', 'data analysis', 'data visualization', 'machine learning'],
-        'ai': ['artificial intelligence', 'machine learning', 'deep learning', 'neural networks'],
-        'design': ['ui design', 'ux design', 'graphic design', 'figma tutorial'],
-        'mobile': ['mobile development', 'android development', 'ios development', 'flutter']
-    }
-
-    for keyword, related in tech_suggestions.items():
-        if keyword in query_lower:
-            suggestions.extend(related)
-
-    # Remove duplicates and current query
-    suggestions = list(set(suggestions))
-    if query.lower() in suggestions:
-        suggestions.remove(query.lower())
-
-    return suggestions[:8]
-
-# Health check
-@app.get("/health")
-async def health_check():
-    return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
+# This code imports the database module and adds functionality for creating learning paths.

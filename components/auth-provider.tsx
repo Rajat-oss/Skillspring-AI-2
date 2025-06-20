@@ -54,7 +54,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true)
     try {
       const userCredential = await firebaseLogin(email, password)
-      setUser(mapFirebaseUserToUser(userCredential.user))
+      const userData = mapFirebaseUserToUser(userCredential.user)
+      const token = await userCredential.user.getIdToken()
+
+      if (userData) {
+        localStorage.setItem('token', token)
+        localStorage.setItem('user', JSON.stringify(userData))
+        localStorage.setItem('loginTime', new Date().toISOString())
+        setUser(userData)
+        setLoading(false)
+      }
+
+
     } finally {
       setLoading(false)
     }

@@ -4,12 +4,14 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+import { Textarea } from "@/components/ui/textarea"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { 
   BookOpen, 
   TrendingUp, 
@@ -34,7 +36,8 @@ import {
   DollarSign,
   Brain,
   FileText,
-  ThumbsUp
+  ThumbsUp,
+  Plus
 } from "lucide-react"
 import { useAuth } from "@/components/auth-provider"
 import { ResumeUpload } from "@/components/resume-upload"
@@ -131,6 +134,11 @@ export function IndividualDashboard() {
   const [opportunitiesLoading, setOpportunitiesLoading] = useState(false)
   const { toast } = useToast()
 
+  const [showAddPath, setShowAddPath] = useState(false)
+  const [newPathTitle, setNewPathTitle] = useState('')
+  const [newPathDescription, setNewPathDescription] = useState('')
+  const [newPathDifficulty, setNewPathDifficulty] = useState('Beginner')
+
   const handleLogout = async () => {
     try {
       await logout()
@@ -192,13 +200,47 @@ export function IndividualDashboard() {
     }
   }
 
+  const handleAddLearningPath = async () => {
+    if (!newPathTitle.trim() || !newPathDescription.trim()) {
+      toast({
+        title: "Error",
+        description: "Please fill in all fields",
+        variant: "destructive"
+      })
+      return
+    }
+
+    const newPath: LearningPath = {
+      id: Date.now().toString(),
+      title: newPathTitle,
+      description: newPathDescription,
+      progress: 0,
+      estimatedTime: '8-12 weeks',
+      difficulty: newPathDifficulty as 'Beginner' | 'Intermediate' | 'Advanced',
+      skills: [],
+      status: 'not_started',
+      lastAccessed: new Date().toISOString()
+    }
+
+    setLearningPaths(prev => [...prev, newPath])
+    setShowAddPath(false)
+    setNewPathTitle('')
+    setNewPathDescription('')
+    setNewPathDifficulty('Beginner')
+
+    toast({
+      title: "Success!",
+      description: "Learning path added successfully"
+    })
+  }
+
   const handleSendMessage = async () => {
     if (!newMessage.trim()) return
 
     const userMessage: AIMessage = {
       id: Date.now().toString(),
       type: 'user',
-      content: newMessage.trim(),
+      content: newMessage,
       timestamp: new Date()
     }
 
@@ -470,159 +512,94 @@ What would you like to explore today? 🚀`,
 
   return (
     <div className="min-h-screen gradient-bg">
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-2 sm:px-4 lg:px-6 py-4 sm:py-8">
         {/* Enhanced Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold mb-2 flex items-center">
-              🚀 Welcome back, {user?.email?.split('@')[0]}!
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 space-y-4 sm:space-y-0">
+          <div className="w-full sm:w-auto">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-green-400 to-blue-500 bg-clip-text text-transparent">
+              Welcome back, {user?.email?.split('@')[0]}! 🚀
             </h1>
-            <p className="text-gray-400">
-              Ready to level up your skills and land your dream job?
-            </p>
+            <p className="text-gray-400 mt-2 text-sm sm:text-base">Continue your learning journey with SkillSpring AI</p>
           </div>
-          <div className="flex items-center space-x-4">
-            <Sheet open={showAIAssistant} onOpenChange={setShowAIAssistant}>
-              <SheetTrigger asChild>
-                <Button variant="outline" size="sm" className="bg-purple-600/20 border-purple-500 hover:bg-purple-600/30">
-                  <Bot className="w-4 h-4 mr-2" />
-                  AI Assistant
-                </Button>
-              </SheetTrigger>
-              <SheetContent className="w-[400px] sm:w-[540px] bg-gray-900 border-gray-700">
-                <SheetHeader>
-                  <SheetTitle className="flex items-center text-green-400">
-                    <Bot className="w-5 h-5 mr-2" />
-                    AI Career Assistant
-                  </SheetTitle>
-                  <SheetDescription className="text-gray-400">
-                    Get personalized career advice, job recommendations, and learning guidance
-                  </SheetDescription>
-                </SheetHeader>
-
-                <div className="flex flex-col h-[calc(100vh-120px)] mt-6">
-                  <ScrollArea className="flex-1 pr-4">
-                    <div className="space-y-4">
-                      {aiMessages.map((message) => (
-                        <div
-                          key={message.id}
-                          className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
-                        >
-                          <div
-                            className={`max-w-[80%] p-3 rounded-lg ${
-                              message.type === 'user'
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-gray-800 text-gray-200 border border-gray-700'
-                            }`}
-                          >
-                            <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                            <p className="text-xs opacity-70 mt-1">
-                              {message.timestamp.toLocaleTimeString()}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                      {aiLoading && (
-                        <div className="flex justify-start">
-                          <div className="bg-gray-800 border border-gray-700 p-3 rounded-lg">
-                            <div className="flex items-center space-x-2">
-                              <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></div>
-                              <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse delay-75"></div>
-                              <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse delay-150"></div>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </ScrollArea>
-
-                  <div className="flex items-center space-x-2 mt-4 pt-4 border-t border-gray-700">
-                    <Input
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                      placeholder="Ask about careers, jobs, skills..."
-                      onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                      className="bg-gray-800 border-gray-600"
-                      disabled={aiLoading}
-                    />
-                    <Button onClick={handleSendMessage} disabled={aiLoading || !newMessage.trim()}>
-                      <Send className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              </SheetContent>
-            </Sheet>
-
-            <Button variant="outline" size="sm">
-              <Users className="w-4 h-4 mr-2" />
-              Profile
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-4 w-full sm:w-auto">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowAIAssistant(!showAIAssistant)}
+              className="border-green-500 text-green-400 hover:bg-green-500 hover:text-white w-full sm:w-auto"
+            >
+              <Brain className="w-4 h-4 mr-2" />
+              AI Assistant
             </Button>
-            <Button variant="outline" size="sm" onClick={handleLogout}>
+            <Button variant="outline" onClick={logout} className="w-full sm:w-auto">
               <LogOut className="w-4 h-4 mr-2" />
               Logout
             </Button>
           </div>
         </div>
 
-        {/* Enhanced Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-          <Card className="bg-gradient-to-br from-green-900/50 to-green-800/30 border-green-700">
-            <CardContent className="p-6">
+        {/* Enhanced Dashboard Stats */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
+          {/* Career Score */}
+          <Card className="bg-gray-900/50 border-gray-700">
+            <CardContent className="p-4 sm:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-green-300">Learning Paths</p>
-                  <p className="text-2xl font-bold text-green-400">{learningPaths.length}</p>
+                  <p className="text-xs sm:text-sm font-medium text-gray-400">Career Score</p>
+                  <p className="text-xl sm:text-2xl font-bold text-green-400">{careerScore}/100</p>
                 </div>
-                <GraduationCap className="w-8 h-8 text-green-400" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-900/20 rounded-full flex items-center justify-center">
+                  <Target className="w-5 h-5 sm:w-6 sm:h-6 text-green-400" />
+                </div>
               </div>
+              <Progress value={careerScore} className="mt-3 sm:mt-4" />
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-blue-900/50 to-blue-800/30 border-blue-700">
-            <CardContent className="p-6">
+          {/* Job Matches */}
+          <Card className="bg-gray-900/50 border-gray-700">
+            <CardContent className="p-4 sm:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-blue-300">Job Matches</p>
-                  <p className="text-2xl font-bold text-blue-400">{jobRecommendations.length}</p>
+                  <p className="text-xs sm:text-sm font-medium text-gray-400">Job Matches</p>
+                  <p className="text-xl sm:text-2xl font-bold text-blue-400">{jobRecommendations.length}</p>
                 </div>
-                <Briefcase className="w-8 h-8 text-blue-400" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-900/20 rounded-full flex items-center justify-center">
+                  <Briefcase className="w-5 h-5 sm:w-6 sm:h-6 text-blue-400" />
+                </div>
               </div>
+              <Progress value={jobRecommendations.length * 5} className="mt-3 sm:mt-4" />
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-purple-900/50 to-purple-800/30 border-purple-700">
-            <CardContent className="p-6">
+          {/* Average Progress */}
+          <Card className="bg-gray-900/50 border-gray-700">
+            <CardContent className="p-4 sm:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-purple-300">Avg Progress</p>
-                  <p className="text-2xl font-bold text-purple-400">{averageProgress}%</p>
+                  <p className="text-xs sm:text-sm font-medium text-gray-400">Avg Progress</p>
+                  <p className="text-xl sm:text-2xl font-bold text-purple-400">{averageProgress}%</p>
                 </div>
-                <TrendingUp className="w-8 h-8 text-purple-400" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-purple-900/20 rounded-full flex items-center justify-center">
+                  <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-purple-400" />
+                </div>
               </div>
+              <Progress value={averageProgress} className="mt-3 sm:mt-4" />
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-orange-900/50 to-orange-800/30 border-orange-700">
-            <CardContent className="p-6">
+          {/* AI Interactions */}
+          <Card className="bg-gray-900/50 border-gray-700">
+            <CardContent className="p-4 sm:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-orange-300">Career Score</p>
-                  <p className="text-2xl font-bold text-orange-400">{careerScore}</p>
+                  <p className="text-xs sm:text-sm font-medium text-gray-400">AI Interactions</p>
+                  <p className="text-xl sm:text-2xl font-bold text-pink-400">{aiMessages.length - 1}</p>
                 </div>
-                <Star className="w-8 h-8 text-orange-400" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-pink-900/50 to-pink-800/30 border-pink-700">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-pink-300">AI Interactions</p>
-                  <p className="text-2xl font-bold text-pink-400">{aiMessages.length - 1}</p>
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-pink-900/20 rounded-full flex items-center justify-center">
+                  <Brain className="w-5 h-5 sm:w-6 sm:h-6 text-pink-400" />
                 </div>
-                <Brain className="w-8 h-8 text-pink-400" />
               </div>
+              <Progress value={(aiMessages.length - 1) * 10} className="mt-3 sm:mt-4" />
             </CardContent>
           </Card>
         </div>
@@ -726,97 +703,74 @@ What would you like to explore today? 🚀`,
 
           {/* Enhanced Learning Tab */}
           <TabsContent value="learning" className="space-y-6">
-            <Tabs defaultValue="folders" className="space-y-6">
-              <TabsList className="grid w-full grid-cols-3 bg-gray-900/50">
-                <TabsTrigger value="folders" className="data-[state=active]:bg-purple-600">
-                  Learning Folders
-                </TabsTrigger>
-                <TabsTrigger value="courses" className="data-[state=active]:bg-blue-600">
-                  Learning Paths
-                </TabsTrigger>
-                <TabsTrigger value="free-resources" className="data-[state=active]:bg-green-600">
-                  Free Resources Hub
-                </TabsTrigger>
-              </TabsList>
+            {/* Learning Paths Section */}
+            <div className="space-y-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-4 sm:space-y-0">
+                <h2 className="text-xl sm:text-2xl font-bold text-white">Learning Paths</h2>
+                <Button 
+                  onClick={() => setShowAddPath(true)}
+                  className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Learning Path
+                </Button>
+              </div>
 
-              <TabsContent value="folders" className="space-y-6">
-                <LearningFoldersManager />
-              </TabsContent>
-
-              <TabsContent value="courses" className="space-y-6">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {learningPaths.map((path) => (
-                    <Card key={path.id} className="bg-gray-900/50 border-gray-700 hover:border-blue-600 transition-colors">
-                      <CardHeader>
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="text-lg">{path.title}</CardTitle>
-                          <div className="flex items-center space-x-2">
-                            <Badge variant={path.difficulty === 'Beginner' ? 'secondary' : path.difficulty === 'Intermediate' ? 'default' : 'destructive'}>
-                              {path.difficulty}
-                            </Badge>
-                            {path.status === 'completed' && (
-                              <Badge className="bg-green-600">
-                                <CheckCircle className="w-3 h-3 mr-1" />
-                                Completed
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                        <CardDescription>{path.description}</CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between text-sm">
-                            <span>Progress</span>
-                            <span>{path.progress}%</span>
-                          </div>
-                          <Progress value={path.progress} className="h-3" />
-                        </div>
-
-                        <div className="flex items-center space-x-4 text-sm text-gray-400">
-                          <div className="flex items-center">
-                            <Clock className="w-4 h-4 mr-1" />
-                            {path.estimatedTime}
-                          </div>
-                          {path.lastAccessed && (
-                            <div className="flex items-center">
-                              <Calendar className="w-4 h-4 mr-1" />
-                              {new Date(path.lastAccessed).toLocaleDateString()}
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="flex flex-wrap gap-2">
-                          {path.skills.slice(0, 3).map((skill) => (
-                            <Badge key={skill} variant="outline" className="text-xs">
-                              {skill}
-                            </Badge>
-                          ))}
-                          {path.skills.length > 3 && (
-                            <Badge variant="outline" className="text-xs">
-                              +{path.skills.length - 3} more
-                            </Badge>
-                          )}
-                        </div>
-
-                        <Button 
-                          className="w-full bg-blue-600 hover:bg-blue-700"
-                          onClick={() => handleContinueLearning(path.id)}
-                          disabled={path.status === 'completed'}
+              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
+                {learningPaths.map((path) => (
+                  <Card key={path.id} className="bg-gray-900/50 border-gray-700 hover:border-blue-500 transition-colors">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-lg text-white">{path.title}</CardTitle>
+                        <Badge 
+                          variant={path.difficulty === 'Beginner' ? 'secondary' : 
+                                  path.difficulty === 'Intermediate' ? 'default' : 'destructive'}
+                          className="text-xs"
                         >
-                          {path.progress === 0 ? 'Start Learning' : 
-                           path.status === 'completed' ? 'Completed' : 'Continue Learning'}
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </TabsContent>
+                          {path.difficulty}
+                        </Badge>
+                      </div>
+                      <CardDescription className="text-sm">{path.description}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-sm">
+                          <span>Progress</span>
+                          <span className="font-medium">{path.progress}%</span>
+                        </div>
+                        <Progress value={path.progress} className="h-2" />
+                      </div>
 
-              <TabsContent value="free-resources">
-                <FreeResourcesHub />
-              </TabsContent>
-            </Tabs>
+                      <div className="flex flex-wrap gap-2">
+                        {path.skills.slice(0, 3).map((skill) => (
+                          <Badge key={skill} variant="outline" className="text-xs">
+                            {skill}
+                          </Badge>
+                        ))}
+                        {path.skills.length > 3 && (
+                          <Badge variant="outline" className="text-xs">
+                            +{path.skills.length - 3}
+                          </Badge>
+                        )}
+                      </div>
+
+                      <div className="flex items-center justify-between pt-2">
+                        <span className="text-xs text-gray-400">
+                          {path.estimatedTime}
+                        </span>
+                        <Button 
+                          size="sm" 
+                          onClick={() => handleContinueLearning(path.id)}
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          {path.status === 'completed' ? 'Review' : 'Continue'}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
           </TabsContent>
 
           {/* Applied Applications Tab */}
@@ -858,16 +812,16 @@ What would you like to explore today? 🚀`,
               </div>
             </div>
 
-            <Tabs defaultValue="jobs" className="space-y-4">
+            <Tabs defaultValue="jobs" className="space-y-6">
               <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="jobs">
-                  Latest Jobs ({liveOpportunities.jobs.length})
+                <TabsTrigger value="jobs" className="text-xs sm:text-sm">
+                  Jobs ({liveOpportunities.jobs?.length || 0})
                 </TabsTrigger>
-                <TabsTrigger value="internships">
-                  Internships ({liveOpportunities.internships.length})
+                <TabsTrigger value="internships" className="text-xs sm:text-sm">
+                  Internships ({liveOpportunities.internships?.length || 0})
                 </TabsTrigger>
-                <TabsTrigger value="hackathons">
-                  Hackathons ({liveOpportunities.hackathons.length})
+                <TabsTrigger value="hackathons" className="text-xs sm:text-sm">
+                  Hackathons ({liveOpportunities.hackathons?.length || 0})
                 </TabsTrigger>
               </TabsList>
 
@@ -1102,6 +1056,67 @@ What would you like to explore today? 🚀`,
             </Card>
           </TabsContent>
         </Tabs>
+
+        {/* Add Learning Path Dialog */}
+        <Dialog open={showAddPath} onOpenChange={setShowAddPath}>
+          <DialogContent className="bg-gray-900 border-gray-700 max-w-md mx-auto">
+            <DialogHeader>
+              <DialogTitle className="text-white">Add New Learning Path</DialogTitle>
+              <DialogDescription className="text-gray-400">
+                Create a custom learning roadmap for your goals
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 mt-4">
+              <div>
+                <label className="text-sm font-medium text-gray-300 mb-2 block">Title</label>
+                <Input
+                  value={newPathTitle}
+                  onChange={(e) => setNewPathTitle(e.target.value)}
+                  placeholder="e.g., Full-Stack Web Development"
+                  className="bg-gray-800 border-gray-600 text-white"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-300 mb-2 block">Description</label>
+                <Textarea
+                  value={newPathDescription}
+                  onChange={(e) => setNewPathDescription(e.target.value)}
+                  placeholder="Describe what you'll learn in this path..."
+                  className="bg-gray-800 border-gray-600 text-white"
+                  rows={3}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-300 mb-2 block">Difficulty</label>
+                <Select value={newPathDifficulty} onValueChange={setNewPathDifficulty}>
+                  <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-800 border-gray-600">
+                    <SelectItem value="Beginner">Beginner</SelectItem>
+                    <SelectItem value="Intermediate">Intermediate</SelectItem>
+                    <SelectItem value="Advanced">Advanced</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex space-x-3 pt-4">
+                <Button 
+                  onClick={handleAddLearningPath}
+                  className="bg-green-600 hover:bg-green-700 flex-1"
+                >
+                  Add Path
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowAddPath(false)}
+                  className="border-gray-600 text-gray-300 flex-1"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   )
