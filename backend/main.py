@@ -596,17 +596,141 @@ LEARNING_PATH_ITEMS_CSV = "data/learning_path_items.csv"
 
 def init_learning_folders():
     if not os.path.exists(LEARNING_FOLDERS_CSV):
-        with open(LEARNING_FOLDERS_CSV, 'w', newline='') as file:
-            writer = csv.writer(file)
-            writer.writerow(['id', 'user_id', 'name', 'description', 'color', 'created_at'])
+        with open(LEARNING_FOLDERS_CSV, 'w', newline='') as<edit_file>
+<path>backend/main.py</path>
+<content>
+<<<<<<< SEARCH
+# Learning endpoints
+@app.get("/learning/folders")
+async def get_learning_folders(current_user: User = Depends(get_current_user)):
+    if current_user.role != "individual":
+        raise HTTPException(status_code=403, detail="Access denied")
 
-    if not os.path.exists(LEARNING_PATH_ITEMS_CSV):
-        with open(LEARNING_PATH_ITEMS_CSV, 'w', newline='') as file:
-            writer = csv.writer(file)
-            writer.writerow(['id', 'folder_id', 'user_id', 'title', 'description', 'completed', 'resources',
-                           'estimated_hours', 'order_index', 'created_at'])
+    folders_data = read_csv_data(LEARNING_FOLDERS_CSV)
+    user_folders = [folder for folder in folders_data if folder['user_id'] == current_user.id]
 
-init_learning_folders()
+    folders_with_items = []
+    for folder in user_folders:
+        items_data = read_csv_data(LEARNING_PATH_ITEMS_CSV)
+        folder_items = [item for item in items_data if item['folder_id'] == folder['id']]
+
+        # Calculate progress
+        total_items = len(folder_items)
+        completed_items = len([item for item in folder_items if item['completed'] == 'True'])
+        progress = (completed_items / total_items * 100) if total_items > 0 else 0
+
+        folders_with_items.append({
+            "id": folder['id'],
+            "name": folder['name'],
+            "description": folder['description'],
+            "color": folder['color'],
+            "progress": int(progress),
+            "total_items": total_items,
+            "completed_items": completed_items,
+            "created_at": folder['created_at']
+        })
+
+    return {"folders": folders_with_items}
+=======
+# Learning endpoints
+@app.get("/learning/folders")
+async def get_learning_folders(current_user: User = Depends(get_current_user)):
+    if current_user.role != "individual":
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    folders_data = read_csv_data(LEARNING_FOLDERS_CSV)
+    user_folders = [folder for folder in folders_data if folder['user_id'] == current_user.id]
+
+    folders_with_items = []
+    for folder in user_folders:
+        items_data = read_csv_data(LEARNING_PATH_ITEMS_CSV)
+        folder_items = [item for item in items_data if item['folder_id'] == folder['id']]
+
+        # Calculate progress
+        total_items = len(folder_items)
+        completed_items = len([item for item in folder_items if item['completed'] == 'True'])
+        progress = (completed_items / total_items * 100) if total_items > 0 else 0
+
+        folders_with_items.append({
+            "id": folder['id'],
+            "name": folder['name'],
+            "description": folder['description'],
+            "color": folder['color'],
+            "progress": int(progress),
+            "total_items": total_items,
+            "completed_items": completed_items,
+            "created_at": folder['created_at']
+        })
+
+    return {"folders": folders_with_items}
+
+# New endpoint: GET /opportunities/live
+@app.get("/opportunities/live")
+async def get_live_opportunities(current_user: User = Depends(get_current_user)):
+    if current_user.role != "individual":
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    from job_scraper import opportunity_cache
+
+    cached_data = opportunity_cache.get("live_opportunities")
+    if cached_data:
+        return cached_data
+    else:
+        return {"jobs": [], "internships": [], "hackathons": [], "last_updated": None}
+
+# New endpoint: GET /jobs/recommendations
+@app.get("/jobs/recommendations")
+async def get_job_recommendations(current_user: User = Depends(get_current_user)):
+    if current_user.role != "individual":
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # For demo, return top 5 jobs from database or mock data
+    try:
+        jobs = database.get_user_job_recommendations(current_user.id)
+        if not jobs:
+            # Return mock data if no recommendations
+            jobs = [
+                {
+                    "id": "1",
+                    "title": "Frontend Developer",
+                    "company": "TechCorp Inc.",
+                    "location": "Remote",
+                    "salary": "$70,000 - $90,000",
+                    "skills": ["React", "TypeScript", "CSS"],
+                    "platform": "LinkedIn"
+                },
+                {
+                    "id": "2",
+                    "title": "Full-Stack Engineer",
+                    "company": "StartupXYZ",
+                    "location": "San Francisco, CA",
+                    "salary": "$80,000 - $120,000",
+                    "skills": ["React", "Node.js", "MongoDB"],
+                    "platform": "AngelList"
+                }
+            ]
+        return {"recommendations": jobs}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to fetch job recommendations")
+
+# New endpoint: GET /student/dashboard/stats
+@app.get("/student/dashboard/stats")
+async def get_student_dashboard_stats(current_user: User = Depends(get_current_user)):
+    if current_user.role != "individual":
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    try:
+        # For demo, return mock stats
+        stats = {
+            "totalApplications": 42,
+            "pendingInterviews": 5,
+            "offersReceived": 3,
+            "rejections": 10,
+            "lastUpdated": datetime.utcnow().isoformat()
+        }
+        return stats
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to fetch dashboard stats")
 
 # Learning endpoints
 @app.get("/learning/folders")

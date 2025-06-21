@@ -111,72 +111,27 @@ export function AppliedApplicationsTracker() {
   const fetchApplications = async () => {
     setLoading(true)
     try {
-      // Mock applications data - in real implementation, this would fetch from backend
-      const mockApplications: Application[] = [
-        {
-          id: '1',
-          title: 'Software Development Intern',
-          company: 'TechCorp',
-          platform: 'unstop',
-          type: 'internship',
-          status: 'applied',
-          applied_date: '2024-01-15T10:00:00Z',
-          last_updated: '2024-01-15T10:00:00Z',
-          email_subject: 'Application Confirmation - Software Development Intern',
-          location: 'Bangalore, India',
-          salary: '₹15,000/month',
-          deadline: '2024-01-30T23:59:59Z',
-          description: 'Work on cutting-edge web applications using React and Node.js',
-          application_url: 'https://unstop.com/internship/123'
-        },
-        {
-          id: '2',
-          title: 'AI/ML Hackathon 2024',
-          company: 'Unstop',
-          platform: 'unstop',
-          type: 'hackathon',
-          status: 'shortlisted',
-          applied_date: '2024-01-10T14:30:00Z',
-          last_updated: '2024-01-20T09:15:00Z',
-          email_subject: 'Congratulations! You have been shortlisted',
-          location: 'Online',
-          deadline: '2024-02-15T23:59:59Z',
-          description: 'Build innovative AI solutions for real-world problems',
-          application_url: 'https://unstop.com/hackathon/456'
-        },
-        {
-          id: '3',
-          title: 'Frontend Developer',
-          company: 'StartupXYZ',
-          platform: 'internshala',
-          type: 'job',
-          status: 'interview_scheduled',
-          applied_date: '2024-01-05T16:20:00Z',
-          last_updated: '2024-01-25T11:30:00Z',
-          email_subject: 'Interview Scheduled - Frontend Developer Position',
-          location: 'Remote',
-          salary: '₹6,00,000/year',
-          description: 'Create responsive web interfaces using modern frameworks',
-          application_url: 'https://internshala.com/job/789'
-        }
-      ]
-
-      // Calculate stats
-      const mockStats: ApplicationStats = {
-        total: mockApplications.length,
-        applied: mockApplications.filter(app => app.status === 'applied').length,
-        selected: mockApplications.filter(app => app.status === 'selected').length,
-        rejected: mockApplications.filter(app => app.status === 'rejected').length,
-        pending: mockApplications.filter(app => ['applied', 'pending', 'shortlisted', 'interview_scheduled'].includes(app.status)).length,
-        response_rate: Math.round((mockApplications.filter(app => ['selected', 'rejected', 'shortlisted', 'interview_scheduled'].includes(app.status)).length / mockApplications.length) * 100)
+      // TODO: Replace with real API call to fetch user applications from backend
+      const response = await fetch('/api/applications/user') // Example endpoint
+      if (!response.ok) {
+        throw new Error('Failed to fetch applications')
       }
+      const data = await response.json()
 
-      setApplications(mockApplications)
-      setStats(mockStats)
+      // Assuming data.applications is the array of applications
+      setApplications(data.applications)
+
+      // Calculate stats based on real data
+      const total = data.applications.length
+      const applied = data.applications.filter((app: Application) => app.status === 'applied').length
+      // Remove selected, pending, rejected stats as they are no longer displayed
+      const response_rate = Math.round((data.applications.filter((app: Application) => ['selected', 'rejected', 'shortlisted', 'interview_scheduled'].includes(app.status)).length / total) * 100)
+
+      setStats({ total, applied, selected: 0, rejected: 0, pending: 0, response_rate })
 
       toast({
         title: "Applications Loaded",
-        description: `Found ${mockApplications.length} applications from your profiles`,
+        description: `Found ${total} applications from your profiles`,
       })
     } catch (error) {
       console.error('Error fetching applications:', error)
@@ -412,42 +367,6 @@ export function AppliedApplicationsTracker() {
                 <p className="text-2xl font-bold text-white">{stats.total}</p>
               </div>
               <Briefcase className="w-8 h-8 text-blue-400" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gray-900/50 border-gray-700">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">Selected</p>
-                <p className="text-2xl font-bold text-green-400">{stats.selected}</p>
-              </div>
-              <CheckCircle className="w-8 h-8 text-green-400" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gray-900/50 border-gray-700">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">Pending</p>
-                <p className="text-2xl font-bold text-yellow-400">{stats.pending}</p>
-              </div>
-              <Clock className="w-8 h-8 text-yellow-400" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gray-900/50 border-gray-700">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">Rejected</p>
-                <p className="text-2xl font-bold text-red-400">{stats.rejected}</p>
-              </div>
-              <XCircle className="w-8 h-8 text-red-400" />
             </div>
           </CardContent>
         </Card>

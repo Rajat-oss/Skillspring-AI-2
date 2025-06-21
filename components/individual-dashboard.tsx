@@ -539,21 +539,6 @@ What would you like to explore today? 🚀`,
 
         {/* Enhanced Dashboard Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
-          {/* Career Score */}
-          <Card className="bg-gray-900/50 border-gray-700">
-            <CardContent className="p-4 sm:p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs sm:text-sm font-medium text-gray-400">Career Score</p>
-                  <p className="text-xl sm:text-2xl font-bold text-green-400">{careerScore}/100</p>
-                </div>
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-900/20 rounded-full flex items-center justify-center">
-                  <Target className="w-5 h-5 sm:w-6 sm:h-6 text-green-400" />
-                </div>
-              </div>
-              <Progress value={careerScore} className="mt-3 sm:mt-4" />
-            </CardContent>
-          </Card>
 
           {/* Job Matches */}
           <Card className="bg-gray-900/50 border-gray-700">
