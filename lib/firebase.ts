@@ -5,17 +5,17 @@ import {
   signInWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
-  User as FirebaseUser,
+  type User as FirebaseUser,
 } from "firebase/auth";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAQsj-6ggimudf8b5IQjN8V33zaRqfoJLw",
-  authDomain: "skillbring-45956.firebaseapp.com",
-  projectId: "skillbring-45956",
-  storageBucket: "skillbring-45956.firebasestorage.app",
-  messagingSenderId: "219696817947",
-  appId: "1:219696817947:web:9654a35dfff3e6eec5d5be",
-  measurementId: "G-L7SHECFHCM"
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
 
 // Initialize Firebase app only once
