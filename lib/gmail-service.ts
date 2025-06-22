@@ -3,6 +3,7 @@ import { GmailAuthService } from './gmail-auth-service';
 import { AIEmailDetector, DetectedApplication } from './ai-email-detector';
 import { db } from './firebase';
 import { doc, setDoc, collection, addDoc, getDocs, query, where } from 'firebase/firestore';
+import { LocalStorageService } from './local-storage-service';
 
 export interface ApplicationData {
   id: string;
@@ -50,7 +51,8 @@ export class GmailService {
       // Check if user has valid Gmail auth
       const authData = await this.authService.getGmailAuth(this.userEmail);
       if (!authData || !authData.isActive) {
-        throw new Error('Gmail not authorized');
+        console.log('Gmail not authorized, returning stored applications');
+        return await this.getStoredApplications();
       }
 
       // Set up Gmail API with stored token
@@ -77,30 +79,49 @@ export class GmailService {
       
       const allMessages = response.data.messages || [];
 
-      if (!allMessages.length) return { jobs: [], internships: [], hackathons: [] };
+      if (!allMessages.length) {
+        console.log('No messages found, returning stored applications');
+        return await this.getStoredApplications();
+      }
 
       const detectedApplications: DetectedApplication[] = [];
       
       for (const message of allMessages) {
-        const emailData = await this.gmail.users.messages.get({
-          userId: 'me',
-          id: message.id,
-        });
+        try {
+          const emailData = await this.gmail.users.messages.get({
+            userId: 'me',
+            id: message.id,
+          });
 
-        const application = await this.analyzeEmailWithAI(emailData.data);
-        if (application) {
-          detectedApplications.push(application);
+          const application = await this.analyzeEmailWithAI(emailData.data);
+          if (application) {
+            detectedApplications.push(application);
+          }
+        } catch (emailError) {
+          console.error(`Error processing email ${message.id}:`, emailError);
+          // Continue processing other emails
         }
       }
 
-      // Store in Firebase
-      await this.storeApplicationsInFirebase(detectedApplications);
+      // Store in Firebase (don't fail if this fails)
+      try {
+        await this.storeApplicationsInFirebase(detectedApplications);
+      } catch (storeError) {
+        console.error('Error storing applications in Firebase:', storeError);
+        // Continue with the response even if storage fails
+      }
 
       // Categorize and return
       return this.categorizeApplications(detectedApplications);
     } catch (error) {
       console.error('Error fetching Gmail data:', error);
-      throw error;
+      // Return stored applications as fallback
+      try {
+        return await this.getStoredApplications();
+      } catch (fallbackError) {
+        console.error('Error getting stored applications:', fallbackError);
+        return { jobs: [], internships: [], hackathons: [] };
+      }
     }
   }
 
@@ -364,19 +385,29 @@ export class GmailService {
 
   private async storeApplicationsInFirebase(applications: DetectedApplication[]): Promise<void> {
     try {
-      // Store user's applications summary
-      const userAppsDoc = doc(db, 'user_applications', this.userEmail);
+      // Store user's applications summary with sanitized email as document ID
+      const sanitizedEmail = this.userEmail.replace(/[.#$\[\]]/g, '_');
+      const userAppsDoc = doc(db, 'user_applications', sanitizedEmail);
+      
       await setDoc(userAppsDoc, {
         email: this.userEmail,
         lastSyncAt: new Date(),
         totalApplications: applications.length,
         applications: applications,
         categorized: this.categorizeApplications(applications)
-      });
+      }, { merge: true });
 
       console.log(`Stored ${applications.length} applications for ${this.userEmail}`);
     } catch (error) {
-      console.error('Error storing applications:', error);
+      console.error('Error storing applications in Firebase, using local storage:', error);
+      // Fallback to local storage
+      LocalStorageService.saveApplications(this.userEmail, {
+        email: this.userEmail,
+        lastSyncAt: new Date(),
+        totalApplications: applications.length,
+        applications: applications,
+        categorized: this.categorizeApplications(applications)
+      });
     }
   }
 
@@ -386,18 +417,25 @@ export class GmailService {
     hackathons: DetectedApplication[];
   }> {
     try {
-      const userAppsDoc = doc(db, 'user_applications', this.userEmail);
+      const sanitizedEmail = this.userEmail.replace(/[.#$\[\]]/g, '_');
+      const userAppsDoc = doc(db, 'user_applications', sanitizedEmail);
+      
+      // Try to get document directly first
       const docSnap = await getDocs(query(collection(db, 'user_applications'), where('email', '==', this.userEmail)));
       
       if (docSnap.empty) {
-        return { jobs: [], internships: [], hackathons: [] };
+        // Try local storage fallback
+        const localData = LocalStorageService.getApplications(this.userEmail);
+        return localData.categorized || localData;
       }
 
       const data = docSnap.docs[0].data();
       return data.categorized || { jobs: [], internships: [], hackathons: [] };
     } catch (error) {
-      console.error('Error getting stored applications:', error);
-      return { jobs: [], internships: [], hackathons: [] };
+      console.error('Error getting stored applications from Firebase, trying local storage:', error);
+      // Fallback to local storage
+      const localData = LocalStorageService.getApplications(this.userEmail);
+      return localData.categorized || localData;
     }
   }
 

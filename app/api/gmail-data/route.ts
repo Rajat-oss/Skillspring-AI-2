@@ -7,14 +7,16 @@ export async function POST(request: NextRequest) {
     
     console.log('Gmail API request:', { userEmail, action, hasToken: !!accessToken });
     
-    if (!userEmail || !accessToken) {
-      console.log('Missing credentials:', { userEmail: !!userEmail, accessToken: !!accessToken });
-      return NextResponse.json({ error: 'Email and access token required' }, { status: 400 });
+    if (!userEmail) {
+      return NextResponse.json({ error: 'User email required' }, { status: 400 });
     }
 
-    const gmailService = new GmailRealtimeService(accessToken, userEmail);
+    // Initialize service even without token (will use mock data)
+    const gmailService = new GmailRealtimeService(accessToken || '', userEmail);
     
     let data;
+    let usingMockData = !accessToken || accessToken === 'undefined';
+    
     switch (action) {
       case 'recent':
         console.log('Fetching recent emails...');
@@ -38,14 +40,26 @@ export async function POST(request: NextRequest) {
       success: true,
       data,
       userEmail: userEmail,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      usingMockData,
+      message: usingMockData ? 'Using demo data - connect Gmail for real emails' : 'Live Gmail data'
     });
 
   } catch (error) {
     console.error('Gmail data error:', error);
-    return NextResponse.json({ 
-      error: 'Failed to fetch Gmail data',
-      success: false 
-    }, { status: 500 });
+    
+    // Return mock data as fallback
+    const { userEmail } = await request.json().catch(() => ({ userEmail: 'demo@example.com' }));
+    const { MockGmailService } = await import('@/lib/mock-gmail-service');
+    const mockService = new MockGmailService(userEmail);
+    
+    return NextResponse.json({
+      success: true,
+      data: await mockService.getRecentEmails(),
+      userEmail,
+      timestamp: new Date().toISOString(),
+      usingMockData: true,
+      message: 'Using demo data due to connection issues'
+    });
   }
 }

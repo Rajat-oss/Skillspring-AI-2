@@ -1,4 +1,5 @@
 {
     "zencoder.enableRepoIndexing": true,
-    "bitoAI.codeCompletion.enableAutoCompletion": false
+    "bitoAI.codeCompletion.enableAutoCompletion": false,
+    "CodeGPT.apiKey": "CodeGPT Plus Beta"
 }

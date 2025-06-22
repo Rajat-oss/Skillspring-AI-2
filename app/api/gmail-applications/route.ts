@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GmailService } from '@/lib/gmail-service';
+import { MockApplicationsService } from '@/lib/mock-applications-service';
 
 export async function POST(request: NextRequest) {
+  let requestBody: any;
+  
   try {
-    const { userEmail, accessToken } = await request.json();
+    // Parse request body once and store it
+    requestBody = await request.json();
+    const { userEmail, accessToken } = requestBody;
     
     if (!userEmail) {
       return NextResponse.json({ error: 'User email required' }, { status: 400 });
@@ -33,9 +38,8 @@ export async function POST(request: NextRequest) {
     
     // Try to get stored applications if live fetch fails
     try {
-      const { userEmail } = await request.json();
-      if (userEmail) {
-        const gmailService = new GmailService(userEmail);
+      if (requestBody?.userEmail) {
+        const gmailService = new GmailService(requestBody.userEmail);
         const storedApps = await gmailService.getStoredApplications();
         
         return NextResponse.json({
@@ -49,12 +53,13 @@ export async function POST(request: NextRequest) {
       console.error('Fallback error:', fallbackError);
     }
     
+    // Return mock data instead of empty arrays
+    const mockData = MockApplicationsService.getMockApplications();
     return NextResponse.json({ 
       success: true,
-      jobs: [],
-      internships: [],
-      hackathons: [],
-      insights: 'Gmail connection in progress. Mock data shown for demo purposes.'
+      ...mockData,
+      insights: `Demo data: Found ${mockData.jobs.length} job applications, ${mockData.internships.length} internships, and ${mockData.hackathons.length} hackathons. Connect Gmail for real data.`,
+      usingMockData: true
     });
   }
 }

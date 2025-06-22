@@ -1,0 +1,19 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow read/write access to gmail_auth collection
+    match /gmail_auth/{document} {
+      allow read, write: if true;
+    }
+    
+    // Allow read/write access to user_applications collection
+    match /user_applications/{document} {
+      allow read, write: if true;
+    }
+    
+    // Allow read/write access to all other documents (temporary for development)
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}
