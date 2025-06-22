@@ -134,13 +134,13 @@ class GmailApplicationTracker:
             return None
 
     def scan_emails_for_applications(self, user_id: str, days_back: int = 30) -> List[Dict]:
-        """Scan Gmail for application-related emails"""
+        """Scan Gmail for application-related emails from last month"""
         service = self.get_gmail_service(user_id)
         if not service:
             return []
 
         try:
-            # Calculate date range
+            # Calculate date range for last month from current date
             since_date = (datetime.now() - timedelta(days=days_back)).strftime('%Y/%m/%d')
             
             # Search queries for different platforms and keywords
@@ -155,10 +155,12 @@ class GmailApplicationTracker:
             
             for query in search_queries:
                 try:
-                    results = service.users().messages().list(userId='me', q=query).execute()
+                    # Fetch messages with reasonable limit
+                    results = service.users().messages().list(userId='me', q=query, maxResults=100).execute()
                     messages = results.get('messages', [])
                     
-                    for message in messages[:50]:  # Limit to 50 per query
+                    # Process messages from last month
+                    for message in messages[:50]:  # Limit to prevent timeout
                         if message['id'] in processed_emails:
                             continue
                         

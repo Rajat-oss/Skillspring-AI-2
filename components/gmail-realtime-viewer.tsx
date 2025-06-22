@@ -6,15 +6,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { RefreshCw, Mail, Search, Clock, User } from "lucide-react"
+import { RefreshCw, Mail, Search, Clock, User, X, ArrowLeft } from "lucide-react"
 import { useSession } from "next-auth/react"
 
 interface GmailEmail {
   id: string;
   subject: string;
   from: string;
+  to?: string;
   date: Date;
   snippet: string;
+  body?: string;
+}
+
+interface FullEmail extends GmailEmail {
+  body: string;
+  to: string;
 }
 
 export function GmailRealtimeViewer() {
@@ -24,6 +31,8 @@ export function GmailRealtimeViewer() {
   const [loading, setLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
+  const [selectedEmail, setSelectedEmail] = useState<FullEmail | null>(null)
+  const [loadingEmail, setLoadingEmail] = useState(false)
 
   const fetchGmailData = async (action: string = 'recent', query?: string) => {
     if (!session?.user?.email || !session?.accessToken) {
@@ -75,16 +84,46 @@ export function GmailRealtimeViewer() {
     }
   }
 
+  const fetchFullEmail = async (messageId: string) => {
+    if (!session?.user?.email || !session?.accessToken) return
+    
+    setLoadingEmail(true)
+    try {
+      const response = await fetch('/api/gmail-data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userEmail: session.user.email,
+          accessToken: session.accessToken,
+          action: 'fullEmail',
+          messageId
+        })
+      })
+
+      const data = await response.json()
+      if (data.success && data.data) {
+        setSelectedEmail({
+          ...data.data,
+          date: new Date(data.data.date)
+        })
+      }
+    } catch (error) {
+      console.error('Error fetching full email:', error)
+    } finally {
+      setLoadingEmail(false)
+    }
+  }
+
   useEffect(() => {
     // Initial load
     fetchGmailData('recent')
     fetchGmailData('unread')
 
-    // Auto-refresh every 30 seconds
+    // Auto-refresh every 10 seconds for real-time
     const interval = setInterval(() => {
       fetchGmailData('recent')
       fetchGmailData('unread')
-    }, 30000)
+    }, 10000)
 
     return () => clearInterval(interval)
   }, [session])
@@ -157,7 +196,7 @@ export function GmailRealtimeViewer() {
             Recent Emails ({emails.length})
           </CardTitle>
           <CardDescription>
-            Real-time Gmail data from your inbox
+            All Gmail data from the last month
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -170,9 +209,13 @@ export function GmailRealtimeViewer() {
             <ScrollArea className="h-[600px]">
               <div className="space-y-4">
                 {emails.map((email) => (
-                  <div key={email.id} className="border border-gray-700 rounded-lg p-4 hover:border-gray-600 transition-colors">
+                  <div 
+                    key={email.id} 
+                    className="border border-gray-700 rounded-lg p-4 hover:border-blue-500 transition-colors cursor-pointer"
+                    onClick={() => fetchFullEmail(email.id)}
+                  >
                     <div className="flex items-start justify-between mb-2">
-                      <h4 className="font-semibold text-lg line-clamp-1">{email.subject}</h4>
+                      <h4 className="font-semibold text-lg line-clamp-1 hover:text-blue-400">{email.subject}</h4>
                       <div className="flex items-center text-xs text-gray-400">
                         <Clock className="w-3 h-3 mr-1" />
                         {email.date.toLocaleString()}
@@ -201,6 +244,83 @@ export function GmailRealtimeViewer() {
           )}
         </CardContent>
       </Card>
+
+      {/* Email Viewer Modal */}
+      {selectedEmail && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-900 border border-gray-700 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-700">
+              <div className="flex items-center space-x-2">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => setSelectedEmail(null)}
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                </Button>
+                <Mail className="w-5 h-5 text-blue-400" />
+                <span className="font-semibold">Email Details</span>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setSelectedEmail(null)}
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+
+            {/* Email Content */}
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
+              {loadingEmail ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                  <p className="text-gray-400">Loading email...</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Email Headers */}
+                  <div className="bg-gray-800 rounded-lg p-4 space-y-3">
+                    <h2 className="text-xl font-bold">{selectedEmail.subject}</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-gray-400">From:</span>
+                        <p className="text-gray-200">{selectedEmail.from}</p>
+                      </div>
+                      <div>
+                        <span className="text-gray-400">To:</span>
+                        <p className="text-gray-200">{selectedEmail.to}</p>
+                      </div>
+                      <div>
+                        <span className="text-gray-400">Date:</span>
+                        <p className="text-gray-200">{selectedEmail.date.toLocaleString()}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Email Body */}
+                  <div className="bg-gray-800 rounded-lg p-4">
+                    <h3 className="text-lg font-semibold mb-3">Message</h3>
+                    <div className="prose prose-invert max-w-none">
+                      {selectedEmail.body.includes('<') ? (
+                        <div 
+                          dangerouslySetInnerHTML={{ __html: selectedEmail.body }}
+                          className="text-gray-200 leading-relaxed"
+                        />
+                      ) : (
+                        <pre className="text-gray-200 whitespace-pre-wrap leading-relaxed font-sans">
+                          {selectedEmail.body}
+                        </pre>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

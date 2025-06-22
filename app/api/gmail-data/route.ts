@@ -3,19 +3,23 @@ import { GmailRealtimeService } from '@/lib/gmail-realtime-service';
 
 export async function POST(request: NextRequest) {
   try {
-    const { userEmail, accessToken, action, query } = await request.json();
+    const { userEmail, accessToken, action, query, messageId } = await request.json();
+    
+    console.log('Gmail API request:', { userEmail, action, hasToken: !!accessToken });
     
     if (!userEmail || !accessToken) {
+      console.log('Missing credentials:', { userEmail: !!userEmail, accessToken: !!accessToken });
       return NextResponse.json({ error: 'Email and access token required' }, { status: 400 });
     }
 
-    console.log('Gmail API request for user:', userEmail);
     const gmailService = new GmailRealtimeService(accessToken, userEmail);
     
     let data;
     switch (action) {
       case 'recent':
-        data = await gmailService.getRecentEmails(20);
+        console.log('Fetching recent emails...');
+        data = await gmailService.getRecentEmails();
+        console.log(`Fetched ${data?.length || 0} emails`);
         break;
       case 'unread':
         data = await gmailService.getUnreadCount();
@@ -23,8 +27,11 @@ export async function POST(request: NextRequest) {
       case 'search':
         data = await gmailService.searchEmails(query || '');
         break;
+      case 'fullEmail':
+        data = await gmailService.getFullEmail(messageId);
+        break;
       default:
-        data = await gmailService.getRecentEmails(10);
+        data = await gmailService.getRecentEmails();
     }
 
     return NextResponse.json({

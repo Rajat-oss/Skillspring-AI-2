@@ -58,22 +58,30 @@ export class GmailService {
       auth.setCredentials({ access_token: authData.accessToken });
       this.gmail = google.gmail({ version: 'v1', auth });
 
-      // Fetch emails from last 3 months
-      const threeMonthsAgo = new Date();
-      threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
-      const searchQuery = `after:${threeMonthsAgo.getFullYear()}/${threeMonthsAgo.getMonth() + 1}/${threeMonthsAgo.getDate()}`;
+      // Fetch emails from last month
+      const oneMonthAgo = new Date();
+      oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+      const year = oneMonthAgo.getFullYear();
+      const month = String(oneMonthAgo.getMonth() + 1).padStart(2, '0');
+      const day = String(oneMonthAgo.getDate()).padStart(2, '0');
+      const searchQuery = `after:${year}/${month}/${day}`;
       
+      console.log(`Searching emails with query: ${searchQuery}`);
+      
+      // Fetch emails with reasonable limit
       const response = await this.gmail.users.messages.list({
         userId: 'me',
         q: searchQuery,
-        maxResults: 200,
+        maxResults: 100,
       });
+      
+      const allMessages = response.data.messages || [];
 
-      if (!response.data.messages) return { jobs: [], internships: [], hackathons: [] };
+      if (!allMessages.length) return { jobs: [], internships: [], hackathons: [] };
 
       const detectedApplications: DetectedApplication[] = [];
       
-      for (const message of response.data.messages) {
+      for (const message of allMessages) {
         const emailData = await this.gmail.users.messages.get({
           userId: 'me',
           id: message.id,
