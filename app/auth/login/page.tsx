@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -10,13 +9,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useAuth } from "@/components/auth-provider"
 import { useToast } from "@/hooks/use-toast"
-import { Sparkles, BookOpen, Rocket } from "lucide-react"
+import { Sparkles } from "lucide-react"
 import Link from "next/link"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [role, setRole] = useState<"individual">("individual")
   const [loading, setLoading] = useState(false)
 
   const router = useRouter()
@@ -28,7 +26,7 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      await login(email, password, role)
+      await login(email, password, "individual")
       toast({
         title: "Welcome back!",
         description: "You've been logged in successfully.",
@@ -57,18 +55,6 @@ export default function LoginPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <Button
-                type="button"
-                variant="default"
-                onClick={() => setRole("individual")}
-                className="bg-green-600 hover:bg-green-700"
-              >
-                <BookOpen className="w-4 h-4 mr-2" />
-                Individual
-              </Button>
-            </div>
-
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -102,11 +88,18 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          <div className="mt-4 text-center text-sm text-gray-400">
-            Don't have an account?{" "}
-            <Link href="/auth/signup" className="text-green-400 hover:underline">
-              Sign up
-            </Link>
+          <div className="mt-4 text-center text-sm text-gray-400 space-y-2">
+            <div>
+              Don't have an account?{" "}
+              <Link href="/auth/signup" className="text-green-400 hover:underline">
+                Sign up
+              </Link>
+            </div>
+            <div>
+              <Link href="/" className="text-blue-400 hover:underline">
+                ← Back to Home
+              </Link>
+            </div>
           </div>
         </CardContent>
       </Card>

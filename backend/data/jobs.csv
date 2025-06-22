@@ -1,0 +1,4 @@
+id,title,company,location,salary,match,skills,platform
+1,Frontend Developer,TechCorp Inc.,Remote,"$70,000 - $90,000",92,"React,TypeScript,CSS",LinkedIn
+2,Full-Stack Engineer,StartupXYZ,"San Francisco, CA","$80,000 - $120,000",87,"React,Node.js,MongoDB",AngelList
+3,Data Scientist,DataCorp,"New York, NY","$90,000 - $130,000",85,"Python,Machine Learning,SQL",Indeed

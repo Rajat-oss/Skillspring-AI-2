@@ -59,7 +59,6 @@ export function LandingPage() {
                   <Target className="w-4 h-4 mr-2 text-green-500" /> Personalized Learning Paths
                 </li>
                 <li className="flex items-center">
-                  {/* Removed Zap icon to fix error */}
                   <span className="w-4 h-4 mr-2 inline-block text-green-500">★</span> AI Career Guidance
                 </li>
                 <li className="flex items-center">
@@ -107,7 +106,6 @@ export function LandingPage() {
             <Card className="bg-gray-800/50 border-gray-700">
               <CardHeader>
                 <CardTitle className="flex items-center text-purple-400">
-                  {/* Removed Users icon to fix error */}
                   <span className="w-6 h-6 mr-2 inline-block text-purple-400">★</span>
                   HireScanGPT
                 </CardTitle>

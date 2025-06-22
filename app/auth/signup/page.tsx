@@ -1,38 +1,27 @@
 "use client"
 
 import type React from "react"
-
-import { useState, useEffect } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useAuth } from "@/components/auth-provider"
 import { useToast } from "@/hooks/use-toast"
-import { Sparkles, BookOpen, Rocket } from "lucide-react"
+import { Sparkles } from "lucide-react"
 import Link from "next/link"
 
 export default function SignupPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
-  const [role, setRole] = useState<"individual">("individual")
   const [profession, setProfession] = useState("")
   const [loading, setLoading] = useState(false)
 
   const router = useRouter()
-  const searchParams = useSearchParams()
   const { signup } = useAuth()
   const { toast } = useToast()
-
-  useEffect(() => {
-    const roleParam = searchParams.get("role")
-    if (roleParam === "individual") {
-      setRole(roleParam)
-    }
-  }, [searchParams])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -47,13 +36,14 @@ export default function SignupPage() {
     }
 
     setLoading(true)
+
     try {
-      await signup(email, password, role)
+      await signup(email, password)
       toast({
-        title: "Welcome to SkillSpring!",
-        description: "Your account has been created successfully.",
+        title: "Account created!",
+        description: "Welcome to SkillSpring. You can now sign in.",
       })
-      router.push("/dashboard/individual")
+      router.push("/auth/login")
     } catch (error) {
       toast({
         title: "Error",
@@ -65,18 +55,6 @@ export default function SignupPage() {
     }
   }
 
-  const professions = [
-    "Student",
-    "Software Developer",
-    "Designer",
-    "Data Scientist",
-    "Marketing Professional",
-    "Sales Professional",
-    "Content Creator",
-    "Freelancer",
-    "Other",
-  ]
-
   return (
     <div className="min-h-screen gradient-bg flex items-center justify-center p-4">
       <Card className="w-full max-w-md bg-gray-900/50 border-gray-700">
@@ -85,22 +63,10 @@ export default function SignupPage() {
             <Sparkles className="w-6 h-6 text-white" />
           </div>
           <CardTitle className="text-2xl">Join SkillSpring</CardTitle>
-          <CardDescription>Create your account and start your journey</CardDescription>
+          <CardDescription>Create your account to get started</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <Button
-                type="button"
-                variant="default"
-                onClick={() => setRole("individual")}
-                className="bg-green-600 hover:bg-green-700"
-              >
-                <BookOpen className="w-4 h-4 mr-2" />
-                Individual
-              </Button>
-            </div>
-
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -114,19 +80,15 @@ export default function SignupPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="profession">{role === "individual" ? "Profession" : "Industry"}</Label>
-              <Select value={profession} onValueChange={setProfession}>
-                <SelectTrigger className="bg-gray-800 border-gray-600">
-                  <SelectValue placeholder={`Select your ${role === "individual" ? "profession" : "industry"}`} />
-                </SelectTrigger>
-                <SelectContent>
-                  {professions.map((prof) => (
-                    <SelectItem key={prof} value={prof}>
-                      {prof}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label htmlFor="profession">Profession (Optional)</Label>
+              <Input
+                id="profession"
+                type="text"
+                value={profession}
+                onChange={(e) => setProfession(e.target.value)}
+                placeholder="e.g., Student, Developer, Designer"
+                className="bg-gray-800 border-gray-600"
+              />
             </div>
 
             <div className="space-y-2">
@@ -162,11 +124,18 @@ export default function SignupPage() {
             </Button>
           </form>
 
-          <div className="mt-4 text-center text-sm text-gray-400">
-            Already have an account?{" "}
-            <Link href="/auth/login" className="text-green-400 hover:underline">
-              Sign in
-            </Link>
+          <div className="mt-4 text-center text-sm text-gray-400 space-y-2">
+            <div>
+              Already have an account?{" "}
+              <Link href="/auth/login" className="text-green-400 hover:underline">
+                Sign in
+              </Link>
+            </div>
+            <div>
+              <Link href="/" className="text-blue-400 hover:underline">
+                ← Back to Home
+              </Link>
+            </div>
           </div>
         </CardContent>
       </Card>

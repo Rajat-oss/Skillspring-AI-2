@@ -1,0 +1,4 @@
+id,title,description,progress,estimated_time,difficulty,skills
+1,Full-Stack Web Development,"Master React, Node.js, and modern web technologies",35,12 weeks,Intermediate,"React,Node.js,MongoDB,TypeScript"
+2,Data Science Fundamentals,"Learn Python, statistics, and machine learning basics",0,16 weeks,Beginner,"Python,Pandas,Scikit-learn,Statistics"
+3,AI/ML Engineering,Deep dive into artificial intelligence and machine learning,15,20 weeks,Advanced,"Python,TensorFlow,PyTorch,Deep Learning"

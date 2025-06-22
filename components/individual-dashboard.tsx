@@ -1,16 +1,51 @@
 "use client"
 
+import type React from "react"
 import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Textarea } from "@/components/ui/textarea"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { 
+  BookOpen, 
+  TrendingUp, 
+  Target, 
+  Award, 
+  Calendar,
+  Clock,
+  CheckCircle,
+  AlertCircle,
+  Star,
+  Briefcase,
+  Users,
+  MessageSquare,
+  LogOut,
+  Bot,
+  Send,
+  GraduationCap,
+  Zap,
+  Trophy,
+  Activity,
+  MapPin,
+  DollarSign,
+  Brain,
+  FileText,
+  ThumbsUp,
+  Plus
+} from "lucide-react"
 import { useAuth } from "@/components/auth-provider"
-import { BookOpen, Briefcase, Target, Clock, ExternalLink, ArrowRight, Sparkles, Brain, Zap } from "lucide-react"
-import { AIService } from "@/lib/ai-service"
 import { RealTimeApplicationTracker } from "@/components/real-time-application-tracker"
 import { SmartSearch } from "@/components/smart-search"
+import { ResumeUpload } from "@/components/resume-upload"
+import { CertificateTracker } from "@/components/certificate-tracker"
+import { AppliedApplicationsTracker } from "@/components/applied-applications-tracker"
+import { useToast } from "@/hooks/use-toast"
 
 interface LearningPath {
   id: string
@@ -18,8 +53,10 @@ interface LearningPath {
   description: string
   progress: number
   estimatedTime: string
-  difficulty: "Beginner" | "Intermediate" | "Advanced"
+  difficulty: string
   skills: string[]
+  status: 'not_started' | 'in_progress' | 'completed'
+  lastAccessed?: string
 }
 
 interface JobRecommendation {
@@ -31,62 +68,77 @@ interface JobRecommendation {
   match: number
   skills: string[]
   platform: string
+  type: 'job' | 'internship'
+  applied?: boolean
+  appliedAt?: string
+}
+
+interface AIMessage {
+  id: string
+  type: 'user' | 'assistant'
+  content: string
+  timestamp: Date
+}
+
+interface ActivityLog {
+  id: string
+  type: 'course_completed' | 'job_applied' | 'certificate_earned' | 'ai_interaction' | 'login'
+  title: string
+  description: string
+  timestamp: Date
+  icon: any
+  color: string
 }
 
 export function IndividualDashboard() {
   const { user, logout } = useAuth()
-  const [activeTab, setActiveTab] = useState("overview")
   const [learningPaths, setLearningPaths] = useState<LearningPath[]>([])
   const [jobRecommendations, setJobRecommendations] = useState<JobRecommendation[]>([])
-  const [aiInsights, setAiInsights] = useState<string>("")
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([])
   const [loading, setLoading] = useState(true)
+  const [careerScore, setCareerScore] = useState(85)
+  const [averageProgress, setAverageProgress] = useState(0)
+  const { toast } = useToast()
 
   useEffect(() => {
-    loadDashboardData()
-  }, [])
+    const fetchDashboardData = async () => {
+      if (!user) return;
 
-  const fetchLearningPaths = async () => {
-    // Placeholder for real API call to fetch learning paths
-    // Return empty array for now
-    return []
-  }
-
-  const fetchJobRecommendations = async () => {
-    // Placeholder for real API call to fetch job recommendations
-    // Return empty array for now
-    return []
-  }
-
-  const fetchAiInsights = async () => {
-    // Placeholder for real API call to fetch AI career insights
-    // Return empty string for now
-    return ""
-  }
-
-  const loadDashboardData = async () => {
-    setLoading(true)
-    try {
-      // Fetch real-time data (currently placeholders)
-      const learningPathsData = await fetchLearningPaths()
-      const jobRecommendationsData = await fetchJobRecommendations()
-      const aiInsightsData = await fetchAiInsights()
-
-      setLearningPaths(learningPathsData)
-      setJobRecommendations(jobRecommendationsData)
-      setAiInsights(aiInsightsData)
-    } catch (error) {
-      console.error("Error loading dashboard data:", error)
-    } finally {
-      setLoading(false)
+      try {
+        // Fallback to mock data
+        const fallbackPaths: LearningPath[] = [
+          {
+            id: '1',
+            title: 'Full-Stack Web Development',
+            description: 'Master React, Node.js, and modern web technologies',
+            progress: 35,
+            estimatedTime: '12 weeks',
+            difficulty: 'Intermediate',
+            skills: ['React', 'Node.js', 'MongoDB', 'TypeScript'],
+            status: 'in_progress',
+            lastAccessed: '2024-01-20T10:30:00Z'
+          }
+        ]
+        setLearningPaths(fallbackPaths)
+        setAverageProgress(35)
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error)
+      } finally {
+        setLoading(false)
+      }
     }
-  }
+
+    if (user) {
+      fetchDashboardData()
+    }
+  }, [user])
 
   if (loading) {
     return (
       <div className="min-h-screen gradient-bg flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-green-500 mx-auto"></div>
-          <p className="mt-4 text-gray-300">Loading your dashboard...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto mb-4"></div>
+          <p className="text-gray-400">Loading your learning journey...</p>
         </div>
       </div>
     )
@@ -94,26 +146,25 @@ export function IndividualDashboard() {
 
   return (
     <div className="min-h-screen gradient-bg">
-      {/* Header */}
-      <header className="border-b border-gray-800 bg-gray-950/50 backdrop-blur-sm">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-purple-600 rounded-lg flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold">Welcome back!</h1>
-              <p className="text-sm text-gray-400">{user?.email}</p>
-            </div>
+      <div className="container mx-auto px-2 sm:px-4 lg:px-6 py-4 sm:py-8">
+        {/* Enhanced Header */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 space-y-4 sm:space-y-0">
+          <div className="w-full sm:w-auto">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-green-400 to-blue-500 bg-clip-text text-transparent">
+              Welcome back, {user?.email?.split('@')[0]}! 🚀
+            </h1>
+            <p className="text-gray-400 mt-2 text-sm sm:text-base">Continue your learning journey with SkillSpring AI</p>
           </div>
-          <Button variant="outline" onClick={logout}>
-            Logout
-          </Button>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-4 w-full sm:w-auto">
+            <Button variant="outline" onClick={logout} className="w-full sm:w-auto">
+              <LogOut className="w-4 h-4 mr-2" />
+              Logout
+            </Button>
+          </div>
         </div>
-      </header>
 
-      <div className="container mx-auto px-4 py-8">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        {/* Main Content */}
+        <Tabs defaultValue="overview" className="space-y-6">
           <TabsList className="grid w-full grid-cols-6 bg-gray-800">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="learn">Learn & Upskill</TabsTrigger>
@@ -124,229 +175,18 @@ export function IndividualDashboard() {
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
-            {/* AI Insights */}
-            <Card className="bg-gradient-to-r from-green-900/20 to-blue-900/20 border-green-500/30">
-              <CardHeader>
-                <CardTitle className="flex items-center text-green-400">
-                  <Brain className="w-6 h-6 mr-2" />
-                  AI Career Insights
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-300">{aiInsights || "No insights available yet."}</p>
-              </CardContent>
-            </Card>
-
-            {/* Quick Actions */}
-            <div className="grid md:grid-cols-2 gap-6">
-              <Card className="bg-gray-900/50 border-gray-700 hover:border-green-500/50 transition-colors cursor-pointer">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card className="bg-gray-900/50 border-gray-700">
                 <CardHeader>
-                  <CardTitle className="flex items-center text-green-400">
-                    <BookOpen className="w-6 h-6 mr-2" />
-                    Continue Learning
+                  <CardTitle className="text-green-400 flex items-center">
+                    <Activity className="w-5 h-5 mr-2" />
+                    Recent Activity
                   </CardTitle>
-                  <CardDescription>Pick up where you left off in your learning journey</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {learningPaths.length === 0 ? (
-                    <p className="text-gray-400">No learning paths available yet.</p>
-                  ) : (
-                    learningPaths.map((path) => (
-                      <div key={path.id} className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span>{path.title}</span>
-                          <span>{path.progress}%</span>
-                        </div>
-                        <Progress value={path.progress} className="h-2" />
-                      </div>
-                    ))
-                  )}
-                  <Button className="mt-4 w-full bg-green-600 hover:bg-green-700">Continue Learning</Button>
+                  <p className="text-gray-400">Your activity will appear here</p>
                 </CardContent>
               </Card>
-
-              <Card className="bg-gray-900/50 border-gray-700 hover:border-blue-500/50 transition-colors cursor-pointer">
-                <CardHeader>
-                  <CardTitle className="flex items-center text-blue-400">
-                    <Briefcase className="w-6 h-6 mr-2" />
-                    Job Opportunities
-                  </CardTitle>
-                  <CardDescription>New job matches based on your skills</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {jobRecommendations.length === 0 ? (
-                    <p className="text-gray-400">No job recommendations available yet.</p>
-                  ) : (
-                    jobRecommendations.map((job) => (
-                      <div key={job.id} className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm">{job.title}</span>
-                          <Badge className="bg-blue-600">{job.match}% Match</Badge>
-                        </div>
-                        <p className="text-xs text-gray-400">{job.company} • {job.location}</p>
-                      </div>
-                    ))
-                  )}
-                  <Button className="mt-4 w-full bg-blue-600 hover:bg-blue-700">View All Jobs</Button>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Stats */}
-            <div className="grid md:grid-cols-4 gap-4">
-              <Card className="bg-gray-900/50 border-gray-700">
-                <CardContent className="p-4 text-center">
-                  <div className="text-2xl font-bold text-green-400">{learningPaths.length}</div>
-                  <p className="text-sm text-gray-400">Active Courses</p>
-                </CardContent>
-              </Card>
-              <Card className="bg-gray-900/50 border-gray-700">
-                <CardContent className="p-4 text-center">
-                  <div className="text-2xl font-bold text-blue-400">{jobRecommendations.length}</div>
-                  <p className="text-sm text-gray-400">Job Matches</p>
-                </CardContent>
-              </Card>
-              <Card className="bg-gray-900/50 border-gray-700">
-                <CardContent className="p-4 text-center">
-                  <div className="text-2xl font-bold text-purple-400">0</div>
-                  <p className="text-sm text-gray-400">Certificates</p>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="learn" className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold">Learning Paths</h2>
-              <Button className="bg-green-600 hover:bg-green-700">
-                <Zap className="w-4 h-4 mr-2" />
-                Get AI Recommendations
-              </Button>
-            </div>
-
-            <div className="grid gap-6">
-              {learningPaths.length === 0 ? (
-                <p className="text-gray-400">No learning paths available yet.</p>
-              ) : (
-                learningPaths.map((path) => (
-                  <Card key={path.id} className="bg-gray-900/50 border-gray-700">
-                    <CardHeader>
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <CardTitle className="text-xl">{path.title}</CardTitle>
-                          <CardDescription className="mt-2">{path.description}</CardDescription>
-                        </div>
-                        <Badge
-                          variant={
-                            path.difficulty === "Beginner"
-                              ? "secondary"
-                              : path.difficulty === "Intermediate"
-                              ? "default"
-                              : "destructive"
-                          }
-                        >
-                          {path.difficulty}
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        <div className="flex items-center space-x-4 text-sm text-gray-400">
-                          <div className="flex items-center">
-                            <Clock className="w-4 h-4 mr-1" />
-                            {path.estimatedTime}
-                          </div>
-                          <div className="flex items-center">
-                            <Target className="w-4 h-4 mr-1" />
-                            {path.progress}% Complete
-                          </div>
-                        </div>
-
-                        <div className="space-y-2">
-                          <div className="flex justify-between text-sm">
-                            <span>Progress</span>
-                            <span>{path.progress}%</span>
-                          </div>
-                          <Progress value={path.progress} className="h-2" />
-                        </div>
-
-                        <div className="flex flex-wrap gap-2">
-                          {path.skills.map((skill) => (
-                            <Badge key={skill} variant="outline" className="text-xs">
-                              {skill}
-                            </Badge>
-                          ))}
-                        </div>
-
-                        <div className="flex space-x-2">
-                          <Button className="flex-1 bg-green-600 hover:bg-green-700">
-                            {path.progress > 0 ? "Continue" : "Start Learning"}
-                            <ArrowRight className="w-4 h-4 ml-2" />
-                          </Button>
-                          <Button variant="outline">
-                            <ExternalLink className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
-              )}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="jobs" className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold">Job Recommendations</h2>
-              <Button className="bg-blue-600 hover:bg-blue-700">
-                <Zap className="w-4 h-4 mr-2" />
-                Refresh Matches
-              </Button>
-            </div>
-
-            <div className="grid gap-6">
-              {jobRecommendations.length === 0 ? (
-                <p className="text-gray-400">No job recommendations available yet.</p>
-              ) : (
-                jobRecommendations.map((job) => (
-                  <Card key={job.id} className="bg-gray-900/50 border-gray-700">
-                    <CardHeader>
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <CardTitle className="text-xl">{job.title}</CardTitle>
-                          <CardDescription className="mt-1">
-                            {job.company} • {job.location}
-                          </CardDescription>
-                          <p className="text-green-400 font-semibold mt-2">{job.salary}</p>
-                        </div>
-                        <div className="text-right">
-                          <Badge className="bg-blue-600 mb-2">{job.match}% Match</Badge>
-                          <p className="text-xs text-gray-400">via {job.platform}</p>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        <div className="flex flex-wrap gap-2">
-                          {job.skills.map((skill) => (
-                            <Badge key={skill} variant="outline" className="text-xs">
-                              {skill}
-                            </Badge>
-                          ))}
-                        </div>
-
-                        <div className="flex space-x-2">
-                          <Button className="flex-1 bg-blue-600 hover:bg-blue-700">
-                            Apply Now
-                            <ExternalLink className="w-4 h-4 ml-2" />
-                          </Button>
-                          <Button variant="outline">Save Job</Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
-              )}
             </div>
           </TabsContent>
 
@@ -362,10 +202,9 @@ export function IndividualDashboard() {
             <Card className="bg-gray-900/50 border-gray-700">
               <CardHeader>
                 <CardTitle>Profile Settings</CardTitle>
-                <CardDescription>Manage your account and preferences</CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-gray-400">Profile management features coming soon...</p>
+                <p className="text-gray-400">Profile settings will be available here</p>
               </CardContent>
             </Card>
           </TabsContent>
