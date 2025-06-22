@@ -1,5 +1,8 @@
 import { google } from 'googleapis';
-import { GenkitAIService } from './genkit-ai-service';
+import { GmailAuthService } from './gmail-auth-service';
+import { AIEmailDetector, DetectedApplication } from './ai-email-detector';
+import { db } from './firebase';
+import { doc, setDoc, collection, addDoc, getDocs, query, where } from 'firebase/firestore';
 
 export interface ApplicationData {
   id: string;
@@ -22,30 +25,53 @@ export interface ConnectedPlatform {
 
 export class GmailService {
   private gmail: any;
-  private genkitAI: GenkitAIService;
+  private authService: GmailAuthService;
+  private aiDetector: AIEmailDetector;
+  private userEmail: string;
 
-  constructor(accessToken: string) {
-    const auth = new google.auth.OAuth2();
-    auth.setCredentials({ access_token: accessToken });
-    this.gmail = google.gmail({ version: 'v1', auth });
-    this.genkitAI = new GenkitAIService();
+  constructor(userEmail: string, accessToken?: string) {
+    this.userEmail = userEmail;
+    this.authService = new GmailAuthService();
+    this.aiDetector = new AIEmailDetector();
+    
+    if (accessToken) {
+      const auth = new google.auth.OAuth2();
+      auth.setCredentials({ access_token: accessToken });
+      this.gmail = google.gmail({ version: 'v1', auth });
+    }
   }
 
-  async fetchApplicationEmails(): Promise<ApplicationData[]> {
+  async fetchAndStoreApplications(): Promise<{
+    jobs: DetectedApplication[];
+    internships: DetectedApplication[];
+    hackathons: DetectedApplication[];
+  }> {
     try {
-      const oneMonthAgo = new Date();
-      oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-      const query = `${this.buildSearchQuery()} after:${oneMonthAgo.getFullYear()}/${oneMonthAgo.getMonth() + 1}/${oneMonthAgo.getDate()}`;
+      // Check if user has valid Gmail auth
+      const authData = await this.authService.getGmailAuth(this.userEmail);
+      if (!authData || !authData.isActive) {
+        throw new Error('Gmail not authorized');
+      }
+
+      // Set up Gmail API with stored token
+      const auth = new google.auth.OAuth2();
+      auth.setCredentials({ access_token: authData.accessToken });
+      this.gmail = google.gmail({ version: 'v1', auth });
+
+      // Fetch emails from last 3 months
+      const threeMonthsAgo = new Date();
+      threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+      const searchQuery = `after:${threeMonthsAgo.getFullYear()}/${threeMonthsAgo.getMonth() + 1}/${threeMonthsAgo.getDate()}`;
       
       const response = await this.gmail.users.messages.list({
         userId: 'me',
-        q: query,
-        maxResults: 100,
+        q: searchQuery,
+        maxResults: 200,
       });
 
-      if (!response.data.messages) return [];
+      if (!response.data.messages) return { jobs: [], internships: [], hackathons: [] };
 
-      const applications: ApplicationData[] = [];
+      const detectedApplications: DetectedApplication[] = [];
       
       for (const message of response.data.messages) {
         const emailData = await this.gmail.users.messages.get({
@@ -53,13 +79,17 @@ export class GmailService {
           id: message.id,
         });
 
-        const application = await this.parseEmailWithAI(emailData.data);
+        const application = await this.analyzeEmailWithAI(emailData.data);
         if (application) {
-          applications.push(application);
+          detectedApplications.push(application);
         }
       }
 
-      return applications;
+      // Store in Firebase
+      await this.storeApplicationsInFirebase(detectedApplications);
+
+      // Categorize and return
+      return this.categorizeApplications(detectedApplications);
     } catch (error) {
       console.error('Error fetching Gmail data:', error);
       throw error;
@@ -98,7 +128,7 @@ export class GmailService {
     return `(${keywordQuery}) OR (${platformQuery})`;
   }
 
-  private async parseEmailWithAI(emailData: any): Promise<ApplicationData | null> {
+  private async analyzeEmailWithAI(emailData: any): Promise<DetectedApplication | null> {
     try {
       const headers = emailData.payload.headers;
       const subject = headers.find((h: any) => h.name === 'Subject')?.value || '';
@@ -106,24 +136,17 @@ export class GmailService {
       const date = new Date(parseInt(emailData.internalDate));
       
       const body = this.extractEmailBody(emailData.payload);
-      const analysis = await this.genkitAI.analyzeEmail(subject, from, body);
+      const application = await this.aiDetector.analyzeEmail(subject, from, body);
       
-      if (!analysis || analysis.confidence < 0.6) return null;
+      if (!application) return null;
 
       return {
+        ...application,
         id: emailData.id,
-        platform: analysis.platform || this.extractPlatform(from, subject) || 'Unknown',
-        company: analysis.company || 'Unknown',
-        role: analysis.role || 'Unknown Position',
-        status: analysis.status,
-        applicationDate: date,
-        emailSubject: subject,
-        emailFrom: from,
-        type: analysis.type,
-        confidence: analysis.confidence,
+        applicationDate: date
       };
     } catch (error) {
-      console.error('Error parsing email with AI:', error);
+      console.error('Error analyzing email:', error);
       return null;
     }
   }
@@ -251,28 +274,72 @@ export class GmailService {
     }
   }
 
-  async getCategorizedApplications(): Promise<{
-    jobs: ApplicationData[];
-    internships: ApplicationData[];
-    hackathons: ApplicationData[];
+  private categorizeApplications(applications: DetectedApplication[]): {
+    jobs: DetectedApplication[];
+    internships: DetectedApplication[];
+    hackathons: DetectedApplication[];
+  } {
+    return {
+      jobs: applications.filter(app => app.type === 'job'),
+      internships: applications.filter(app => app.type === 'internship'),
+      hackathons: applications.filter(app => app.type === 'hackathon')
+    };
+  }
+
+  private async storeApplicationsInFirebase(applications: DetectedApplication[]): Promise<void> {
+    try {
+      // Store user's applications summary
+      const userAppsDoc = doc(db, 'user_applications', this.userEmail);
+      await setDoc(userAppsDoc, {
+        email: this.userEmail,
+        lastSyncAt: new Date(),
+        totalApplications: applications.length,
+        applications: applications,
+        categorized: this.categorizeApplications(applications)
+      });
+
+      console.log(`Stored ${applications.length} applications for ${this.userEmail}`);
+    } catch (error) {
+      console.error('Error storing applications:', error);
+    }
+  }
+
+  async getStoredApplications(): Promise<{
+    jobs: DetectedApplication[];
+    internships: DetectedApplication[];
+    hackathons: DetectedApplication[];
   }> {
     try {
-      const applications = await this.fetchApplicationEmails();
-      return await this.genkitAI.categorizeApplications(applications);
+      const userAppsDoc = doc(db, 'user_applications', this.userEmail);
+      const docSnap = await getDocs(query(collection(db, 'user_applications'), where('email', '==', this.userEmail)));
+      
+      if (docSnap.empty) {
+        return { jobs: [], internships: [], hackathons: [] };
+      }
+
+      const data = docSnap.docs[0].data();
+      return data.categorized || { jobs: [], internships: [], hackathons: [] };
     } catch (error) {
-      console.error('Error categorizing applications:', error);
+      console.error('Error getting stored applications:', error);
       return { jobs: [], internships: [], hackathons: [] };
     }
   }
 
-  async getAIInsights(): Promise<string> {
-    try {
-      const applications = await this.fetchApplicationEmails();
-      return await this.genkitAI.generateInsights(applications);
-    } catch (error) {
-      console.error('Error generating AI insights:', error);
-      return 'Unable to generate insights at this time.';
-    }
+  async saveGmailAuthorization(accessToken: string, refreshToken: string, expiresIn: number): Promise<void> {
+    const authData = {
+      email: this.userEmail,
+      accessToken,
+      refreshToken,
+      expiresAt: Date.now() + (expiresIn * 1000),
+      authorizedAt: new Date(),
+      isActive: true
+    };
+
+    await this.authService.saveGmailAuth(this.userEmail, authData);
+  }
+
+  async isAuthorized(): Promise<boolean> {
+    return await this.authService.isGmailAuthorized(this.userEmail);
   }
 
   private getPlatformDomain(platform: string): string {

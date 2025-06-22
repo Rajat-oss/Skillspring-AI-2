@@ -6,7 +6,12 @@ interface OTPData {
 }
 
 class OTPManager {
-  private storage = new Map<string, OTPData>();
+  private get storage() {
+    if (!global.otpStorage) {
+      global.otpStorage = new Map();
+    }
+    return global.otpStorage;
+  }
   private readonly EXPIRY_TIME = 5 * 60 * 1000; // 5 minutes
 
   generateOTP(): string {

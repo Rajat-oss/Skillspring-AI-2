@@ -41,6 +41,7 @@ import {
 } from "lucide-react"
 import { useAuth } from "@/components/auth-provider"
 import { RealTimeApplicationTracker } from "@/components/real-time-application-tracker"
+import { GmailAuthStatus } from "@/components/gmail-auth-status"
 import { SmartSearch } from "@/components/smart-search"
 import { ResumeUpload } from "@/components/resume-upload"
 import { CertificateTracker } from "@/components/certificate-tracker"
@@ -191,6 +192,7 @@ export function IndividualDashboard() {
           </TabsContent>
 
           <TabsContent value="applications" className="space-y-6">
+            <GmailAuthStatus />
             <RealTimeApplicationTracker />
           </TabsContent>
 

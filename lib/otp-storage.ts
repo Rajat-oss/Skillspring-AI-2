@@ -1,2 +1,6 @@
-// Shared OTP storage for both send-otp and verify-otp APIs
-export const otpStorage = new Map();
+// Global OTP storage that persists across API calls
+if (!global.otpStorage) {
+  global.otpStorage = new Map();
+}
+
+export const otpStorage = global.otpStorage;

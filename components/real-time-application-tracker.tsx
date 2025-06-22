@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useSession, signIn } from "next-auth/react"
 import { RefreshCw, Mail, Calendar, Building, Briefcase, Code, Trophy, Brain } from "lucide-react"
 import { RealOTPVerification } from "@/components/real-otp-verification"
+import { GmailVerificationService } from "@/lib/gmail-verification-service"
 
 interface ApplicationData {
   id: string;
@@ -38,38 +39,35 @@ export function RealTimeApplicationTracker() {
   const [loading, setLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [verifiedEmail, setVerifiedEmail] = useState<string | null>(null)
+  const [checkingVerification, setCheckingVerification] = useState(true)
 
   useEffect(() => {
     if (session?.accessToken) {
       fetchCategorizedApplications()
-      fetchPlatforms()
     }
+    fetchPlatforms()
   }, [session])
 
   const fetchCategorizedApplications = async () => {
-    if (!session?.accessToken) return
+    if (!session?.user?.email) return
     
     setLoading(true)
     try {
-      const response = await fetch('/api/categorized-applications')
+      const response = await fetch('/api/gmail-applications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          userEmail: session.user.email,
+          accessToken: session.accessToken 
+        })
+      })
+      
       const data = await response.json()
-      if (data.jobs) {
-        setJobs(data.jobs.map((app: any) => ({
-          ...app,
-          applicationDate: new Date(app.applicationDate)
-        })))
-        setInternships(data.internships.map((app: any) => ({
-          ...app,
-          applicationDate: new Date(app.applicationDate)
-        })))
-        setHackathons(data.hackathons.map((app: any) => ({
-          ...app,
-          applicationDate: new Date(app.applicationDate)
-        })))
-        setInsights(data.insights || "")
-        
-        // Auto-store applications in Firebase
-        await fetch('/api/store-applications', { method: 'POST' })
+      if (data.success) {
+        setJobs(data.jobs || [])
+        setInternships(data.internships || [])
+        setHackathons(data.hackathons || [])
+        setInsights(data.insights || "AI has analyzed your applications and found patterns in your job search activity.")
       }
     } catch (error) {
       console.error('Error fetching applications:', error)
@@ -79,17 +77,12 @@ export function RealTimeApplicationTracker() {
   }
 
   const fetchPlatforms = async () => {
-    if (!session?.accessToken) return
-    
-    try {
-      const response = await fetch('/api/platforms')
-      const data = await response.json()
-      if (data.platforms) {
-        setPlatforms(data.platforms)
-      }
-    } catch (error) {
-      console.error('Error fetching platforms:', error)
-    }
+    // Mock platforms data
+    setPlatforms([
+      { name: 'LinkedIn', domain: 'linkedin.com', count: 0 },
+      { name: 'Indeed', domain: 'indeed.com', count: 0 },
+      { name: 'Naukri', domain: 'naukri.com', count: 0 }
+    ])
   }
 
   const refreshApplications = async () => {
@@ -161,10 +154,71 @@ export function RealTimeApplicationTracker() {
     </div>
   )
 
-  const handleEmailVerified = (email: string) => {
+  const handleEmailVerified = async (email: string) => {
     setVerifiedEmail(email)
-    // Auto-trigger Gmail OAuth after email verification
-    signIn('google')
+    
+    // Save verification status permanently
+    try {
+      await fetch('/api/save-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, verified: true })
+      })
+      console.log('Verification saved permanently for:', email)
+    } catch (error) {
+      console.error('Error saving verification:', error)
+    }
+    
+    // Fetch applications
+    fetchCategorizedApplications()
+  }
+
+  // Check verification status on load and set up real-time updates
+  useEffect(() => {
+    const checkVerification = async () => {
+      if (session?.user?.email) {
+        try {
+          const response = await fetch('/api/check-verification', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: session.user.email })
+          })
+          const data = await response.json()
+          
+          if (data.verified) {
+            setVerifiedEmail(session.user.email)
+            fetchCategorizedApplications()
+          }
+        } catch (error) {
+          console.error('Error checking verification:', error)
+        }
+      }
+      setCheckingVerification(false)
+    }
+
+    checkVerification()
+    
+    // Set up periodic check for verification status
+    const interval = setInterval(() => {
+      if (session?.user?.email && !verifiedEmail) {
+        checkVerification()
+      }
+    }, 5000) // Check every 5 seconds
+
+    return () => clearInterval(interval)
+  }, [session, verifiedEmail])
+
+  if (checkingVerification) {
+    return (
+      <div className="space-y-6">
+        <Card className="bg-gray-900/50 border-gray-700">
+          <CardContent className="p-6 text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500 mx-auto mb-4"></div>
+            <p className="text-gray-400">Checking Gmail verification status...</p>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   if (!verifiedEmail) {

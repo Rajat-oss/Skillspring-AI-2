@@ -1,50 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { otpManager } from '@/lib/otp-manager';
+import { db } from '@/lib/firebase';
+import { doc, setDoc } from 'firebase/firestore';
 
 export async function POST(request: NextRequest) {
   try {
     console.log('=== Verify OTP API Called ===');
-    console.log('Request method:', request.method);
-    console.log('Request headers:', Object.fromEntries(request.headers.entries()));
-    console.log('Request URL:', request.url);
     
-    let body;
-    try {
-      body = await request.json();
-      console.log('Raw body:', body);
-      console.log('Body type:', typeof body);
-      console.log('Body keys:', Object.keys(body));
-    } catch (parseError) {
-      console.error('JSON parse error:', parseError);
-      return NextResponse.json({ 
-        error: 'Invalid JSON format in request body' 
-      }, { status: 400 });
-    }
-    
+    const body = await request.json();
     const { email, otp } = body;
     
-    console.log('Extracted email:', email, 'type:', typeof email);
-    console.log('Extracted otp:', otp, 'type:', typeof otp);
-    console.log('Email length:', email?.length);
-    console.log('OTP length:', otp?.length);
-    console.log('Storage info before verification:', otpManager.getStorageInfo());
+    console.log('Email:', email, 'OTP:', otp);
+    console.log('Storage info:', otpManager.getStorageInfo());
     
-    // Validate required fields
-    if (!email || typeof email !== 'string') {
+    if (!email || !otp) {
       return NextResponse.json({ 
-        error: 'Email is required and must be a string' 
-      }, { status: 400 });
-    }
-    
-    if (!otp || typeof otp !== 'string') {
-      return NextResponse.json({ 
-        error: 'OTP is required and must be a string' 
-      }, { status: 400 });
-    }
-    
-    if (otp.length !== 6 || !/^\d{6}$/.test(otp)) {
-      return NextResponse.json({ 
-        error: 'OTP must be a 6-digit number' 
+        error: 'Email and OTP required' 
       }, { status: 400 });
     }
 
@@ -55,18 +26,33 @@ export async function POST(request: NextRequest) {
     const result = otpManager.verifyOTP(email, otp);
     
     console.log('Verification result:', result);
-    console.log('Storage info after verification:', otpManager.getStorageInfo());
     
     if (!result.success) {
       return NextResponse.json({ 
         error: result.message 
       }, { status: 400 });
     }
+
+    // Save verified Gmail permanently in Firebase
+    try {
+      const verifiedDoc = doc(db, 'verified_gmails', email);
+      await setDoc(verifiedDoc, {
+        email,
+        verifiedAt: new Date(),
+        isVerified: true,
+        needsGmailAuth: true,
+        status: 'verified'
+      });
+      console.log('Gmail verification saved to Firebase');
+    } catch (firebaseError) {
+      console.error('Firebase save error:', firebaseError);
+    }
     
     return NextResponse.json({ 
       success: true, 
       message: result.message,
-      email: email
+      email: email,
+      verified: true
     });
     
   } catch (error) {
