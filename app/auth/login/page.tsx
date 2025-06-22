@@ -16,7 +16,7 @@ import Link from "next/link"
 export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [role, setRole] = useState<"individual" | "startup">("individual")
+  const [role, setRole] = useState<"individual">("individual")
   const [loading, setLoading] = useState(false)
 
   const router = useRouter()
@@ -33,7 +33,7 @@ export default function LoginPage() {
         title: "Welcome back!",
         description: "You've been logged in successfully.",
       })
-      router.push(role === "individual" ? "/dashboard/individual" : "/dashboard/startup")
+      router.push("/dashboard/individual")
     } catch (error) {
       toast({
         title: "Error",
@@ -60,21 +60,12 @@ export default function LoginPage() {
             <div className="grid grid-cols-2 gap-4">
               <Button
                 type="button"
-                variant={role === "individual" ? "default" : "outline"}
+                variant="default"
                 onClick={() => setRole("individual")}
-                className={role === "individual" ? "bg-green-600 hover:bg-green-700" : ""}
+                className="bg-green-600 hover:bg-green-700"
               >
                 <BookOpen className="w-4 h-4 mr-2" />
                 Individual
-              </Button>
-              <Button
-                type="button"
-                variant={role === "startup" ? "default" : "outline"}
-                onClick={() => setRole("startup")}
-                className={role === "startup" ? "bg-purple-600 hover:bg-purple-700" : ""}
-              >
-                <Rocket className="w-4 h-4 mr-2" />
-                Startup
               </Button>
             </div>
 

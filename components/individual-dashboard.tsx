@@ -9,6 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useAuth } from "@/components/auth-provider"
 import { BookOpen, Briefcase, Target, Clock, ExternalLink, ArrowRight, Sparkles, Brain, Zap } from "lucide-react"
 import { AIService } from "@/lib/ai-service"
+import { RealTimeApplicationTracker } from "@/components/real-time-application-tracker"
+import { SmartSearch } from "@/components/smart-search"
 
 interface LearningPath {
   id: string
@@ -112,10 +114,12 @@ export function IndividualDashboard() {
 
       <div className="container mx-auto px-4 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 bg-gray-800">
+          <TabsList className="grid w-full grid-cols-6 bg-gray-800">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="learn">Learn & Upskill</TabsTrigger>
             <TabsTrigger value="jobs">Get Hired</TabsTrigger>
+            <TabsTrigger value="applications">Applications</TabsTrigger>
+            <TabsTrigger value="ai-chat">AI Chat</TabsTrigger>
             <TabsTrigger value="profile">Profile</TabsTrigger>
           </TabsList>
 
@@ -344,6 +348,14 @@ export function IndividualDashboard() {
                 ))
               )}
             </div>
+          </TabsContent>
+
+          <TabsContent value="applications" className="space-y-6">
+            <RealTimeApplicationTracker />
+          </TabsContent>
+
+          <TabsContent value="ai-chat" className="space-y-6">
+            <SmartSearch />
           </TabsContent>
 
           <TabsContent value="profile" className="space-y-6">

@@ -7,6 +7,7 @@ import {
   onAuthStateChanged,
   type User as FirebaseUser,
 } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -21,6 +22,7 @@ const firebaseConfig = {
 // Initialize Firebase app only once
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
+const db = getFirestore(app);
 
 async function signup(email: string, password: string) {
   return createUserWithEmailAndPassword(auth, email, password);
@@ -40,6 +42,7 @@ function onAuthStateChangedListener(callback: (user: FirebaseUser | null) => voi
 
 export {
   auth,
+  db,
   signup,
   login,
   logout,
