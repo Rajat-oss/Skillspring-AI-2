@@ -1,36 +1,27 @@
-
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { message, context } = body
-
-    // Get auth token from headers
-    const authHeader = request.headers.get('authorization')
+    const { message } = await request.json();
     
-    // Forward request to backend
-    const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000'}/ai/chat/student-assistant`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': authHeader || ''
-      },
-      body: JSON.stringify({ message, context })
-    })
+    // Simple AI response for now
+    const response = `I understand you're asking about: "${message}". I'm here to help with your career journey! Here are some suggestions:
 
-    if (!response.ok) {
-      throw new Error('Backend API error')
-    }
+🎯 **Career Guidance**: I can help with career path recommendations and goal setting
+📚 **Learning**: Course suggestions and skill development advice  
+💼 **Job Search**: Resume tips and interview preparation
+📊 **Market Insights**: Industry trends and salary information
 
-    const data = await response.json()
-    return NextResponse.json(data)
+What specific area would you like to explore further?`;
 
+    return NextResponse.json({ 
+      success: true,
+      response 
+    });
   } catch (error) {
-    console.error('AI Chat API Error:', error)
-    return NextResponse.json(
-      { error: 'AI assistant temporarily unavailable' },
-      { status: 500 }
-    )
+    console.error('AI Chat error:', error);
+    return NextResponse.json({ 
+      error: 'Failed to process request' 
+    }, { status: 500 });
   }
 }
