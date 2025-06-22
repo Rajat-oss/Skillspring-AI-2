@@ -3,10 +3,17 @@ import { GmailAuthService } from '@/lib/gmail-auth-service';
 
 export async function POST(request: NextRequest) {
   try {
-    const { userEmail } = await request.json();
+    let userEmail;
+    try {
+      const body = await request.json();
+      userEmail = body.userEmail;
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError);
+      return NextResponse.json({ authorized: false, lastSync: null });
+    }
     
     if (!userEmail) {
-      return NextResponse.json({ error: 'User email required' }, { status: 400 });
+      return NextResponse.json({ authorized: false, lastSync: null });
     }
 
     const authService = new GmailAuthService();

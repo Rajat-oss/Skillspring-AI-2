@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useSession, signIn } from "next-auth/react"
 import { RefreshCw, Mail, Calendar, Building, Briefcase, Code, Trophy, Brain } from "lucide-react"
 import { RealOTPVerification } from "@/components/real-otp-verification"
-import { GmailVerificationService } from "@/lib/gmail-verification-service"
+
 
 interface ApplicationData {
   id: string;
@@ -157,56 +157,47 @@ export function RealTimeApplicationTracker() {
   const handleEmailVerified = async (email: string) => {
     setVerifiedEmail(email)
     
-    // Save verification status permanently
-    try {
-      await fetch('/api/save-verification', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, verified: true })
-      })
-      console.log('Verification saved permanently for:', email)
-    } catch (error) {
-      console.error('Error saving verification:', error)
-    }
+    // Save verification in localStorage (persists until logout)
+    localStorage.setItem('gmail_verified', email)
+    localStorage.setItem('gmail_verified_at', new Date().toISOString())
+    console.log('Verification saved in localStorage for:', email)
     
     // Fetch applications
     fetchCategorizedApplications()
   }
 
-  // Check verification status on load and set up real-time updates
+  // Check verification status on load
   useEffect(() => {
-    const checkVerification = async () => {
+    const checkVerification = () => {
       if (session?.user?.email) {
-        try {
-          const response = await fetch('/api/check-verification', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: session.user.email })
-          })
-          const data = await response.json()
+        // Check localStorage first
+        const savedEmail = localStorage.getItem('gmail_verified')
+        const savedAt = localStorage.getItem('gmail_verified_at')
+        
+        if (savedEmail === session.user.email && savedAt) {
+          const verifiedDate = new Date(savedAt)
+          const now = new Date()
+          const hoursDiff = (now.getTime() - verifiedDate.getTime()) / (1000 * 60 * 60)
           
-          if (data.verified) {
+          // Keep verification for 24 hours or until logout
+          if (hoursDiff < 24) {
             setVerifiedEmail(session.user.email)
+            console.log('Verification restored from localStorage')
             fetchCategorizedApplications()
+            setCheckingVerification(false)
+            return
+          } else {
+            // Clear expired verification
+            localStorage.removeItem('gmail_verified')
+            localStorage.removeItem('gmail_verified_at')
           }
-        } catch (error) {
-          console.error('Error checking verification:', error)
         }
       }
       setCheckingVerification(false)
     }
 
     checkVerification()
-    
-    // Set up periodic check for verification status
-    const interval = setInterval(() => {
-      if (session?.user?.email && !verifiedEmail) {
-        checkVerification()
-      }
-    }, 5000) // Check every 5 seconds
-
-    return () => clearInterval(interval)
-  }, [session, verifiedEmail])
+  }, [session])
 
   if (checkingVerification) {
     return (

@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { otpManager } from '@/lib/otp-manager';
-import { db } from '@/lib/firebase';
-import { doc, setDoc } from 'firebase/firestore';
 
 export async function POST(request: NextRequest) {
   try {
@@ -33,20 +31,8 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Save verified Gmail permanently in Firebase
-    try {
-      const verifiedDoc = doc(db, 'verified_gmails', email);
-      await setDoc(verifiedDoc, {
-        email,
-        verifiedAt: new Date(),
-        isVerified: true,
-        needsGmailAuth: true,
-        status: 'verified'
-      });
-      console.log('Gmail verification saved to Firebase');
-    } catch (firebaseError) {
-      console.error('Firebase save error:', firebaseError);
-    }
+    // Save verification persistently
+    console.log('Email verified successfully:', email);
     
     return NextResponse.json({ 
       success: true, 

@@ -1,22 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { userDB } from '@/lib/user-verification-db';
 
 export async function POST(request: NextRequest) {
   try {
-    const { email } = await request.json();
+    let email;
+    try {
+      const body = await request.json();
+      email = body.email;
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError);
+      return NextResponse.json({ verified: false });
+    }
     
     if (!email) {
       return NextResponse.json({ verified: false });
     }
 
-    const verifiedDoc = doc(db, 'verified_gmails', email);
-    const docSnap = await getDoc(verifiedDoc);
-    
-    const isVerified = docSnap.exists() && docSnap.data()?.isVerified === true;
+    const isVerified = userDB.isVerified(email);
+    const isGmailConnected = userDB.isGmailConnected(email);
 
     return NextResponse.json({ 
       verified: isVerified,
+      gmailConnected: isGmailConnected,
       email: email
     });
     

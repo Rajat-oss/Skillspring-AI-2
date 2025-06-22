@@ -31,25 +31,34 @@ export function GmailAuthStatus() {
     }
 
     try {
-      // Check verification status
-      const verifyResponse = await fetch('/api/check-verification', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: session.user.email })
-      })
-      const verifyData = await verifyResponse.json()
-      setIsVerified(verifyData.verified)
-
-      // Check Gmail auth status
-      const authResponse = await fetch('/api/check-gmail-auth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userEmail: session.user.email })
-      })
-      const authData = await authResponse.json()
+      // Check localStorage for verification
+      const savedEmail = localStorage.getItem('gmail_verified')
+      const savedAt = localStorage.getItem('gmail_verified_at')
       
-      setAuthStatus(authData.authorized ? 'authorized' : 'not_authorized')
-      setLastSync(authData.lastSync)
+      if (savedEmail === session.user.email && savedAt) {
+        const verifiedDate = new Date(savedAt)
+        const now = new Date()
+        const hoursDiff = (now.getTime() - verifiedDate.getTime()) / (1000 * 60 * 60)
+        
+        if (hoursDiff < 24) {
+          setIsVerified(true)
+        } else {
+          localStorage.removeItem('gmail_verified')
+          localStorage.removeItem('gmail_verified_at')
+          setIsVerified(false)
+        }
+      } else {
+        setIsVerified(false)
+      }
+
+      // Check Gmail connection status
+      const gmailConnected = localStorage.getItem('gmail_connected')
+      if (gmailConnected === session.user.email) {
+        setAuthStatus('authorized')
+        setLastSync(localStorage.getItem('gmail_connected_at'))
+      } else {
+        setAuthStatus('not_authorized')
+      }
     } catch (error) {
       console.error('Error checking status:', error)
       setAuthStatus('not_authorized')
@@ -63,8 +72,11 @@ export function GmailAuthStatus() {
         scope: 'openid email profile https://www.googleapis.com/auth/gmail.readonly'
       })
       
-      if (result?.ok) {
-        // Save authorization and refresh status
+      if (result?.ok && session?.user?.email) {
+        // Save Gmail connection in localStorage
+        localStorage.setItem('gmail_connected', session.user.email)
+        localStorage.setItem('gmail_connected_at', new Date().toISOString())
+        
         setTimeout(() => {
           checkAuthStatus()
         }, 1000)

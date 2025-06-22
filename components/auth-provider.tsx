@@ -84,6 +84,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => {
     setLoading(true)
     try {
+      // Clear verification data from localStorage
+      localStorage.removeItem('gmail_verified')
+      localStorage.removeItem('gmail_verified_at')
+      localStorage.removeItem('gmail_connected')
+      localStorage.removeItem('gmail_connected_at')
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+      localStorage.removeItem('loginTime')
+      console.log('Cleared all user data on logout')
+      
       await firebaseLogout()
       setUser(null)
     } finally {

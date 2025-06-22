@@ -1,0 +1,171 @@
+jobs: DetectedApplication[];
+    internships: DetectedApplication[];
+    hackathons: DetectedApplication[];
+  }> {
+    try {
+      // Check if user has valid Gmail auth
+      const authData = await this.authService.getGmailAuth(this.userEmail);
+      if (!authData || !authData.isActive) {
+        throw new Error('Gmail not authorized');
+      }
+
+      // Set up Gmail API with stored token
+      const auth = new google.auth.OAuth2();
+      auth.setCredentials({ access_token: authData.accessToken });
+      this.gmail = google.gmail({ version: 'v1', auth });
+
+      // Fetch emails from last 3 months
+      const threeMonthsAgo = new Date();
+      threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+      const searchQuery = `after:${threeMonthsAgo.getFullYear()}/${threeMonthsAgo.getMonth() + 1}/${threeMonthsAgo.getDate()}`;
+      
+      const response = await this.gmail.users.messages.list({
+        userId: 'me',
+        q: searchQuery,
+        maxResults: 200,
+      });
+
+      if (!response.data.messages) return { jobs: [], internships: [], hackathons: [] };
+
+      const detectedApplications: DetectedApplication[] = [];
+      
+      for (const message of response.data.messages) {
+        const emailData = await this.gmail.users.messages.get({
+          userId: 'me',
+          id: message.id,
+        });
+
+        const application = await this.analyzeEmailWithAI(emailData.data);
+        if (application) {
+          detectedApplications.push(application);
+        }
+      }
+
+      // Store in Firebase
+      await this.storeApplicationsInFirebase(detectedApplications);
+
+      // Categorize and return
+      return this.categorizeApplications(detectedApplications);
+    } catch (error) {
+      console.error('Error fetching Gmail data:', error);
+      throw error;
+    }
+  }
+=======
+  async fetchAndStoreApplications(): Promise<{
+    jobs: DetectedApplication[];
+    internships: DetectedApplication[];
+    hackathons: DetectedApplication[];
+  }> {
+    try {
+      // Check if user has valid Gmail auth
+      const authData = await this.authService.getGmailAuth(this.userEmail);
+      if (!authData || !authData.isActive) {
+        throw new Error('Gmail not authorized');
+      }
+
+      // Set up Gmail API with stored token
+      const auth = new google.auth.OAuth2();
+      auth.setCredentials({ access_token: authData.accessToken });
+      this.gmail = google.gmail({ version: 'v1', auth });
+
+      // Fetch emails from last 3 months
+      const threeMonthsAgo = new Date();
+      threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+      const searchQuery = `after:${threeMonthsAgo.getFullYear()}/${threeMonthsAgo.getMonth() + 1}/${threeMonthsAgo.getDate()}`;
+      
+      const response = await this.gmail.users.messages.list({
+        userId: 'me',
+        q: searchQuery,
+        maxResults: 200,
+      });
+
+      if (!response.data.messages) return { jobs: [], internships: [], hackathons: [] };
+
+      const detectedApplications: DetectedApplication[] = [];
+      
+      for (const message of response.data.messages) {
+        const emailData = await this.gmail.users.messages.get({
+          userId: 'me',
+          id: message.id,
+        });
+
+        const application = await this.analyzeEmailWithAI(emailData.data);
+        if (application) {
+          detectedApplications.push(application);
+        }
+      }
+
+      // Store in Firebase
+      await this.storeApplicationsInFirebase(detectedApplications);
+
+      // Categorize and return
+      return this.categorizeApplications(detectedApplications);
+    } catch (error) {
+      console.error('Error fetching Gmail data:', error);
+      throw error;
+    }
+  }
+
+  // New method to start watching Gmail inbox for push notifications
+  async startWatch(topicName: string): Promise<void> {
+    try {
+      const authData = await this.authService.getGmailAuth(this.userEmail);
+      if (!authData || !authData.isActive) {
+        throw new Error('Gmail not authorized');
+      }
+
+      const auth = new google.auth.OAuth2();
+      auth.setCredentials({ access_token: authData.accessToken });
+      this.gmail = google.gmail({ version: 'v1', auth });
+
+      const watchRequest = {
+        userId: 'me',
+        requestBody: {
+          labelIds: ['INBOX'],
+          topicName: topicName, // Google Cloud Pub/Sub topic
+        },
+      };
+
+      const response = await this.gmail.users.watch(watchRequest);
+      console.log('Gmail watch started:', response.data);
+    } catch (error) {
+      console.error('Error starting Gmail watch:', error);
+      throw error;
+    }
+  }
+
+  // New method to fetch new emails by message IDs (called on webhook notification)
+  async fetchNewEmails(messageIds: string[]): Promise<void> {
+    try {
+      const authData = await this.authService.getGmailAuth(this.userEmail);
+      if (!authData || !authData.isActive) {
+        throw new Error('Gmail not authorized');
+      }
+
+      const auth = new google.auth.OAuth2();
+      auth.setCredentials({ access_token: authData.accessToken });
+      this.gmail = google.gmail({ version: 'v1', auth });
+
+      const detectedApplications: DetectedApplication[] = [];
+
+      for (const messageId of messageIds) {
+        const emailData = await this.gmail.users.messages.get({
+          userId: 'me',
+          id: messageId,
+        });
+
+        const application = await this.analyzeEmailWithAI(emailData.data);
+        if (application) {
+          detectedApplications.push(application);
+        }
+      }
+
+      if (detectedApplications.length > 0) {
+        await this.storeApplicationsInFirebase(detectedApplications);
+      }
+    } catch (error) {
+      console.error('Error fetching new emails:', error);
+      throw error;
+    }
+  }

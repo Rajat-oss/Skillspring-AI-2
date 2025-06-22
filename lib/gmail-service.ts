@@ -96,6 +96,69 @@ export class GmailService {
     }
   }
 
+  // New method to start watching Gmail inbox for push notifications
+  async startWatch(topicName: string): Promise<void> {
+    try {
+      const authData = await this.authService.getGmailAuth(this.userEmail);
+      if (!authData || !authData.isActive) {
+        throw new Error('Gmail not authorized');
+      }
+
+      const auth = new google.auth.OAuth2();
+      auth.setCredentials({ access_token: authData.accessToken });
+      this.gmail = google.gmail({ version: 'v1', auth });
+
+      const watchRequest = {
+        userId: 'me',
+        requestBody: {
+          labelIds: ['INBOX'],
+          topicName: topicName, // Google Cloud Pub/Sub topic
+        },
+      };
+
+      const response = await this.gmail.users.watch(watchRequest);
+      console.log('Gmail watch started:', response.data);
+    } catch (error) {
+      console.error('Error starting Gmail watch:', error);
+      throw error;
+    }
+  }
+
+  // New method to fetch new emails by message IDs (called on webhook notification)
+  async fetchNewEmails(messageIds: string[]): Promise<void> {
+    try {
+      const authData = await this.authService.getGmailAuth(this.userEmail);
+      if (!authData || !authData.isActive) {
+        throw new Error('Gmail not authorized');
+      }
+
+      const auth = new google.auth.OAuth2();
+      auth.setCredentials({ access_token: authData.accessToken });
+      this.gmail = google.gmail({ version: 'v1', auth });
+
+      const detectedApplications: DetectedApplication[] = [];
+
+      for (const messageId of messageIds) {
+        const emailData = await this.gmail.users.messages.get({
+          userId: 'me',
+          id: messageId,
+        });
+
+        const application = await this.analyzeEmailWithAI(emailData.data);
+        if (application) {
+          detectedApplications.push(application);
+        }
+      }
+
+      if (detectedApplications.length > 0) {
+        await this.storeApplicationsInFirebase(detectedApplications);
+      }
+    } catch (error) {
+      console.error('Error fetching new emails:', error);
+      throw error;
+    }
+  }
+
   private buildSearchQuery(): string {
     const keywords = [
       'application received',
@@ -252,10 +315,15 @@ export class GmailService {
 
   async getConnectedPlatforms(): Promise<ConnectedPlatform[]> {
     try {
-      const applications = await this.fetchApplicationEmails();
+      const categorizedApps = await this.getStoredApplications();
+      const applications = [
+        ...categorizedApps.jobs,
+        ...categorizedApps.internships,
+        ...categorizedApps.hackathons,
+      ];
       const platformCounts: { [key: string]: { name: string; domain: string; count: number } } = {};
 
-      applications.forEach(app => {
+      applications.forEach((app: any) => {
         const domain = this.getPlatformDomain(app.platform);
         if (!platformCounts[app.platform]) {
           platformCounts[app.platform] = {

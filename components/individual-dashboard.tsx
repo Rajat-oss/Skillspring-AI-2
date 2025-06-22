@@ -42,6 +42,7 @@ import {
 import { useAuth } from "@/components/auth-provider"
 import { RealTimeApplicationTracker } from "@/components/real-time-application-tracker"
 import { GmailAuthStatus } from "@/components/gmail-auth-status"
+import { GmailRealtimeViewer } from "@/components/gmail-realtime-viewer"
 import { SmartSearch } from "@/components/smart-search"
 import { ResumeUpload } from "@/components/resume-upload"
 import { CertificateTracker } from "@/components/certificate-tracker"
@@ -166,11 +167,12 @@ export function IndividualDashboard() {
 
         {/* Main Content */}
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6 bg-gray-800">
+          <TabsList className="grid w-full grid-cols-7 bg-gray-800">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="learn">Learn & Upskill</TabsTrigger>
             <TabsTrigger value="jobs">Get Hired</TabsTrigger>
             <TabsTrigger value="applications">Applications</TabsTrigger>
+            <TabsTrigger value="gmail">Gmail Data</TabsTrigger>
             <TabsTrigger value="ai-chat">AI Chat</TabsTrigger>
             <TabsTrigger value="profile">Profile</TabsTrigger>
           </TabsList>
@@ -194,6 +196,10 @@ export function IndividualDashboard() {
           <TabsContent value="applications" className="space-y-6">
             <GmailAuthStatus />
             <RealTimeApplicationTracker />
+          </TabsContent>
+
+          <TabsContent value="gmail" className="space-y-6">
+            <GmailRealtimeViewer />
           </TabsContent>
 
           <TabsContent value="ai-chat" className="space-y-6">
