@@ -18,18 +18,19 @@ export default function SignupPage() {
   const [step, setStep] = useState<'signup' | 'otp-verification' | 'complete'>('signup')
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
   const [otp, setOtp] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [otpError, setOtpError] = useState<string | null>(null)
   const [userCredential, setUserCredential] = useState<any>(null)
+  
   
   const router = useRouter()
   const { data: session } = useSession()
   const { toast } = useToast()
 
   useEffect(() => {
-    if (session?.user) {
-      setStep('complete')
+    if (session?.user && step === 'complete') {
       // Store user data and redirect
       localStorage.setItem('gmail_verified', session.user.email!)
       localStorage.setItem('gmail_verified_at', new Date().toISOString())
@@ -40,7 +41,17 @@ export default function SignupPage() {
         router.push('/dashboard')
       }, 2000)
     }
-  }, [session, router])
+  }, [session, router, step])
+
+  const handleSignOut = async () => {
+    try {
+      await fetch('/api/auth/signout', { method: 'POST' })
+      setStep('signup')
+      localStorage.clear()
+    } catch (error) {
+      console.error('Sign out failed', error)
+    }
+  }
 
   const validateEmail = (email: string) => {
     const re = /^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$/
@@ -59,6 +70,10 @@ export default function SignupPage() {
     }
     if (!validatePassword(password)) {
       setError("Password must be at least 6 characters.")
+      return
+    }
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.")
       return
     }
     setLoading(true)
@@ -200,7 +215,7 @@ export default function SignupPage() {
 
   if (step === 'complete') {
     return (
-      <div className="min-h-screen gradient-bg flex items-center justify-center p-4">
+      <div className="min-h-screen gradient-bg flex flex-col items-center justify-center p-4 space-y-4">
         <Card className="w-full max-w-md bg-gray-900/50 border-gray-700">
           <CardContent className="p-8 text-center">
             <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
@@ -209,6 +224,9 @@ export default function SignupPage() {
             <p className="text-sm text-green-400">Redirecting to dashboard...</p>
           </CardContent>
         </Card>
+        <Button onClick={handleSignOut} variant="outline" className="w-full max-w-md">
+          Sign out and create a new account
+        </Button>
       </div>
     )
   }
@@ -299,7 +317,7 @@ export default function SignupPage() {
                 disabled={loading}
               />
             </div>
-            <div>
+          <div>
               <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
@@ -307,6 +325,17 @@ export default function SignupPage() {
                 placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                disabled={loading}
+              />
+            </div>
+            <div>
+              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                placeholder="Confirm your password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
                 disabled={loading}
               />
             </div>
