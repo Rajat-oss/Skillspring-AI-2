@@ -5,7 +5,8 @@ import { useEffect, useState } from "react"
 import { DashboardNav } from "@/components/dashboard-nav"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Mail, ArrowRight, Bot, MessageCircle } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Mail, ArrowRight, Bot, MessageCircle, Briefcase, Building } from "lucide-react"
 import Link from "next/link"
 
 export default function DashboardPage() {
@@ -128,6 +129,28 @@ export default function DashboardPage() {
               <Button className="bg-purple-600 hover:bg-purple-700 w-full">
                 <MessageCircle className="w-4 h-4 mr-2" />
                 Start AI Chat
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+
+        {/* Application Tracker Card */}
+        <Card className="bg-gray-900/50 border-gray-700 mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Briefcase className="w-5 h-5 mr-2" />
+              Application Tracker
+            </CardTitle>
+            <CardDescription>
+              AI-powered analysis of your job applications, internships, and hackathons from Gmail
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Link href="/applications">
+              <Button className="bg-green-600 hover:bg-green-700 w-full">
+                <Building className="w-4 h-4 mr-2" />
+                View Application Tracker
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             </Link>
