@@ -29,6 +29,7 @@ export default function GmailInboxPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [unreadCount, setUnreadCount] = useState(0)
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null)
+  const [lastSync, setLastSync] = useState<string | null>(null)
   const router = useRouter()
 
   useEffect(() => {
@@ -38,20 +39,79 @@ export default function GmailInboxPage() {
       return
     }
     setUserEmail(email)
+    // Only load cached data, no automatic refresh
     loadCachedData(email)
   }, [router])
 
   const loadCachedData = (email: string) => {
     const cachedEmails = localStorage.getItem(`gmail_emails_${email}`)
     const cachedUnreadCount = localStorage.getItem(`gmail_unread_${email}`)
+    const cachedLastSync = localStorage.getItem(`gmail_last_sync_${email}`)
     
     if (cachedEmails) {
       const parsedEmails = JSON.parse(cachedEmails)
       setEmails(parsedEmails)
+      setFilteredEmails(parsedEmails)
     }
     
     if (cachedUnreadCount) {
       setUnreadCount(parseInt(cachedUnreadCount))
+    }
+    
+    if (cachedLastSync) {
+      setLastSync(cachedLastSync)
+    }
+  }
+
+  const manualRefresh = async () => {
+    if (!userEmail) return
+    
+    setLoading(true)
+    try {
+      const [emailsResponse, unreadResponse] = await Promise.all([
+        fetch('/api/gmail-data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            action: 'recent',
+            userEmail: userEmail,
+            accessToken: 'demo_access_token_for_' + userEmail
+          })
+        }),
+        fetch('/api/gmail-data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            action: 'unread',
+            userEmail: userEmail,
+            accessToken: 'demo_access_token_for_' + userEmail
+          })
+        })
+      ])
+      
+      const [emailsResult, unreadResult] = await Promise.all([
+        emailsResponse.json(),
+        unreadResponse.json()
+      ])
+
+      if (emailsResult.success) {
+        const emailData = emailsResult.data || []
+        setEmails(emailData)
+        setFilteredEmails(emailData)
+        localStorage.setItem(`gmail_emails_${userEmail}`, JSON.stringify(emailData))
+        localStorage.setItem(`gmail_last_sync_${userEmail}`, new Date().toISOString())
+        setLastSync(new Date().toISOString())
+      }
+
+      if (unreadResult.success) {
+        const count = unreadResult.data || 0
+        setUnreadCount(count)
+        localStorage.setItem(`gmail_unread_${userEmail}`, count.toString())
+      }
+    } catch (error) {
+      console.error('Error refreshing emails:', error)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -67,64 +127,6 @@ export default function GmailInboxPage() {
       setFilteredEmails(emails)
     }
   }, [searchTerm, emails])
-
-  const fetchEmails = async () => {
-    if (!userEmail) return
-    
-    setLoading(true)
-    try {
-      const response = await fetch('/api/gmail-data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          action: 'recent',
-          userEmail: userEmail,
-          accessToken: 'demo_access_token_for_' + userEmail
-        })
-      })
-      
-      const result = await response.json()
-      if (result.success) {
-        const emailData = result.data || []
-        setEmails(emailData)
-        // Save to localStorage
-        localStorage.setItem(`gmail_emails_${userEmail}`, JSON.stringify(emailData))
-        localStorage.setItem(`gmail_last_sync_${userEmail}`, new Date().toISOString())
-      } else {
-        console.log('Gmail API response:', result)
-      }
-    } catch (error) {
-      console.error('Error fetching emails:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const fetchUnreadCount = async () => {
-    if (!userEmail) return
-    
-    try {
-      const response = await fetch('/api/gmail-data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          action: 'unread',
-          userEmail: userEmail,
-          accessToken: 'demo_access_token_for_' + userEmail
-        })
-      })
-      
-      const result = await response.json()
-      if (result.success) {
-        const count = result.data || 0
-        setUnreadCount(count)
-        // Save to localStorage
-        localStorage.setItem(`gmail_unread_${userEmail}`, count.toString())
-      }
-    } catch (error) {
-      console.error('Error fetching unread count:', error)
-    }
-  }
 
   const formatDate = (date: Date) => {
     const now = new Date()
@@ -159,12 +161,9 @@ export default function GmailInboxPage() {
               <p className="text-gray-400">{userEmail}</p>
             </div>
           </div>
-          <Button onClick={() => { fetchEmails(); fetchUnreadCount(); }} disabled={loading}>
+          <Button onClick={manualRefresh} disabled={loading}>
             <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
-          <Button variant="outline" size="sm" className="ml-4" asChild>
-            <a href="/gmail-inbox">Open Gmail Inbox Dashboard</a>
+            {loading ? 'Refreshing...' : 'Refresh'}
           </Button>
         </div>
 
@@ -206,10 +205,10 @@ export default function GmailInboxPage() {
           <CardHeader>
             <CardTitle className="flex items-center">
               <Mail className="w-5 h-5 mr-2" />
-              Real-time Gmail Inbox
+              Gmail Inbox
             </CardTitle>
             <CardDescription>
-              {emails.length > 0 ? 'Live data from your Gmail account' : 'Connect Gmail to see real-time data'}
+              {emails.length > 0 ? 'Your cached Gmail emails - click Refresh for latest data' : 'No emails found - click Refresh to load'}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -224,14 +223,16 @@ export default function GmailInboxPage() {
               />
             </div>
 
+            {/* Last Sync Info */}
+            {lastSync && (
+              <div className="text-xs text-gray-500 bg-gray-800/30 p-2 rounded">
+                Last synced: {new Date(lastSync).toLocaleString()}
+              </div>
+            )}
+
             {/* Email List */}
             <div className="space-y-2 max-h-96 overflow-y-auto">
-              {loading ? (
-                <div className="text-center py-8">
-                  <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                  <p className="text-gray-400">Loading your emails...</p>
-                </div>
-              ) : filteredEmails.length > 0 ? (
+              {filteredEmails.length > 0 ? (
                 filteredEmails.map((email) => (
                   <div 
                     key={email.id} 
@@ -269,7 +270,7 @@ export default function GmailInboxPage() {
                 <div className="text-center py-8">
                   <Mail className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                   <p className="text-gray-400">
-                    {searchTerm ? 'No emails match your search' : 'No emails found'}
+                    {searchTerm ? 'No emails match your search' : 'No emails found. Click Refresh to load your emails.'}
                   </p>
                 </div>
               )}
