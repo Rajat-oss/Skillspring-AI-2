@@ -7,48 +7,69 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
-import { Sparkles, Mail } from "lucide-react"
+import { Sparkles, Mail, AlertCircle } from "lucide-react"
 import Link from "next/link"
+import { login } from "@/lib/firebase"
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [error, setError] = useState<string | null>(null)
   
   const router = useRouter()
   const { toast } = useToast()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError(null)
     
     if (!email) {
-      toast({
-        title: "Error",
-        description: "Please enter your email address",
-        variant: "destructive",
-      })
+      setError("Please enter your email address")
+      return
+    }
+
+    if (!password) {
+      setError("Please enter your password")
       return
     }
 
     setLoading(true)
     
-    // Store user session data (demo login - any email works)
-    localStorage.setItem('user_email', email)
-    localStorage.setItem('gmail_verified', email)
-    localStorage.setItem('gmail_verified_at', new Date().toISOString())
-    localStorage.setItem('gmail_connected', email)
-    localStorage.setItem('gmail_connected_at', new Date().toISOString())
-    
-    toast({
-      title: "Login Successful",
-      description: "Welcome back!",
-    })
-    
-    setTimeout(() => {
-      router.push('/dashboard')
-    }, 1000)
-    
-    setLoading(false)
+    try {
+      // Attempt to login with Firebase
+      const userCredential = await login(email, password)
+      
+      // Store user session data
+      localStorage.setItem('user_email', email)
+      localStorage.setItem('gmail_verified', email)
+      localStorage.setItem('gmail_verified_at', new Date().toISOString())
+      
+      toast({
+        title: "Login Successful",
+        description: "Welcome back!",
+      })
+      
+      // Redirect to dashboard
+      setTimeout(() => {
+        router.push('/dashboard')
+      }, 1000)
+    } catch (error: any) {
+      // Handle login errors
+      let errorMessage = "Login failed. Please check your credentials."
+      
+      if (error.code === 'auth/user-not-found') {
+        errorMessage = "No account found with this email. Please sign up first."
+      } else if (error.code === 'auth/wrong-password') {
+        errorMessage = "Incorrect password. Please try again."
+      } else if (error.code === 'auth/too-many-requests') {
+        errorMessage = "Too many failed login attempts. Please try again later."
+      }
+      
+      setError(errorMessage)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -64,11 +85,11 @@ export default function LoginPage() {
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Gmail Address</Label>
+              <Label htmlFor="email">Email Address</Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="your.email@gmail.com"
+                placeholder="your.email@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -81,16 +102,20 @@ export default function LoginPage() {
               <Input
                 id="password"
                 type="password"
-                placeholder="Any password (demo)"
+                placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                required
                 className="bg-gray-800 border-gray-600"
               />
             </div>
             
-            <div className="text-xs text-gray-500 text-center">
-              Demo mode: Enter any email to login
-            </div>
+            {error && (
+              <div className="bg-red-900/30 border border-red-800 rounded-md p-3 flex items-start">
+                <AlertCircle className="w-5 h-5 text-red-500 mr-2 mt-0.5 flex-shrink-0" />
+                <p className="text-sm text-red-300">{error}</p>
+              </div>
+            )}
 
             <Button
               type="submit"
@@ -102,7 +127,7 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          <div className="text-center text-sm text-gray-400 space-y-2">
+          <div className="text-center text-sm text-gray-400 space-y-2 mt-6">
             <div>
               Don't have an account?{" "}
               <Link href="/auth/signup" className="text-green-400 hover:underline">

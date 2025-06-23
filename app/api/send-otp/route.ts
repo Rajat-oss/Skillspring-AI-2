@@ -19,9 +19,11 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
     
-    if (!email.includes('@gmail.com')) {
+    // Validate email format
+    const emailRegex = /^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$/;
+    if (!emailRegex.test(email)) {
       return NextResponse.json({ 
-        error: 'Please provide a valid Gmail address' 
+        error: 'Please provide a valid email address' 
       }, { status: 400 });
     }
 
@@ -45,8 +47,8 @@ export async function POST(request: NextRequest) {
     
     return NextResponse.json({ 
       success: true, 
-      message: 'OTP sent to your Gmail address. Please check your inbox and spam folder.',
-      expiresIn: '5 minutes'
+      message: 'OTP sent to your email address. Please check your inbox and spam folder.',
+      expiresIn: '10 minutes'
     });
     
   } catch (error) {

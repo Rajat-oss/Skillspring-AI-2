@@ -12,7 +12,7 @@ class OTPManager {
     }
     return global.otpStorage;
   }
-  private readonly EXPIRY_TIME = 5 * 60 * 1000; // 5 minutes
+  private readonly EXPIRY_TIME = 10 * 60 * 1000; // 10 minutes
 
   generateOTP(): string {
     return Math.floor(100000 + Math.random() * 900000).toString();

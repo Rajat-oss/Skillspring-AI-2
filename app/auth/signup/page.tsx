@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
-import { Sparkles, Mail, Shield, CheckCircle } from "lucide-react"
+import { Sparkles, Mail, Shield, CheckCircle, KeyRound } from "lucide-react"
 import Link from "next/link"
 import { signIn, useSession } from "next-auth/react"
 import { signup, auth } from "@/lib/firebase"
@@ -15,10 +15,13 @@ import { sendEmailVerification } from "firebase/auth"
 
 export default function SignupPage() {
   const [loading, setLoading] = useState(false)
-  const [step, setStep] = useState<'signup' | 'verifying' | 'complete'>('signup')
+  const [step, setStep] = useState<'signup' | 'otp-verification' | 'complete'>('signup')
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [otp, setOtp] = useState("")
   const [error, setError] = useState<string | null>(null)
+  const [otpError, setOtpError] = useState<string | null>(null)
+  const [userCredential, setUserCredential] = useState<any>(null)
   
   const router = useRouter()
   const { data: session } = useSession()
@@ -60,16 +63,32 @@ export default function SignupPage() {
     }
     setLoading(true)
     try {
-      const userCredential = await signup(email, password)
-      if (userCredential.user) {
-        await sendEmailVerification(userCredential.user)
-        setStep('verifying')
-        toast({
-          title: "Verification Email Sent",
-          description: "Please check your email and verify your account before logging in.",
-          variant: "default",
-        })
+      // Create user in Firebase
+      const userCred = await signup(email, password)
+      setUserCredential(userCred)
+      
+      // Send OTP for verification
+      const response = await fetch('/api/send-otp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to send OTP');
       }
+      
+      // Move to OTP verification step
+      setStep('otp-verification')
+      toast({
+        title: "OTP Sent",
+        description: "Please check your email for the verification code.",
+        variant: "default",
+      })
     } catch (error: any) {
       setError(error.message || "Signup failed. Please try again.")
     } finally {
@@ -77,9 +96,87 @@ export default function SignupPage() {
     }
   }
 
+  const handleVerifyOTP = async () => {
+    setOtpError(null)
+    if (!otp || otp.length !== 6) {
+      setOtpError("Please enter a valid 6-digit OTP.")
+      return
+    }
+    
+    setLoading(true)
+    try {
+      const response = await fetch('/api/verify-otp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, otp }),
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'OTP verification failed');
+      }
+      
+      // OTP verified successfully
+      setStep('complete')
+      
+      // Store user data
+      localStorage.setItem('user_email', email)
+      localStorage.setItem('gmail_verified', email)
+      localStorage.setItem('gmail_verified_at', new Date().toISOString())
+      
+      toast({
+        title: "Account Verified",
+        description: "Your account has been verified successfully!",
+        variant: "default",
+      })
+      
+      // Redirect to dashboard after a delay
+      setTimeout(() => {
+        router.push('/dashboard')
+      }, 2000)
+    } catch (error: any) {
+      setOtpError(error.message || "OTP verification failed. Please try again.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const resendOTP = async () => {
+    setOtpError(null)
+    setLoading(true)
+    
+    try {
+      const response = await fetch('/api/send-otp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to resend OTP');
+      }
+      
+      toast({
+        title: "OTP Resent",
+        description: "A new verification code has been sent to your email.",
+        variant: "default",
+      })
+    } catch (error: any) {
+      setOtpError(error.message || "Failed to resend OTP. Please try again.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleGmailSignup = async () => {
     setLoading(true)
-    setStep('verifying')
     
     try {
       const result = await signIn('google', {
@@ -91,7 +188,6 @@ export default function SignupPage() {
         throw new Error(result.error)
       }
     } catch (error) {
-      setStep('signup')
       toast({
         title: "Signup Failed",
         description: "Please try again or contact support.",
@@ -109,7 +205,7 @@ export default function SignupPage() {
           <CardContent className="p-8 text-center">
             <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
             <h2 className="text-2xl font-bold mb-2">Welcome to SkillSpring!</h2>
-            <p className="text-gray-400 mb-4">Your account is ready and Gmail is connected.</p>
+            <p className="text-gray-400 mb-4">Your account has been verified successfully.</p>
             <p className="text-sm text-green-400">Redirecting to dashboard...</p>
           </CardContent>
         </Card>
@@ -117,15 +213,62 @@ export default function SignupPage() {
     )
   }
 
-  if (step === 'verifying') {
+  if (step === 'otp-verification') {
     return (
       <div className="min-h-screen gradient-bg flex items-center justify-center p-4">
         <Card className="w-full max-w-md bg-gray-900/50 border-gray-700">
-          <CardContent className="p-8 text-center">
-            <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <h2 className="text-xl font-bold mb-2">Verify your email...</h2>
-            <p className="text-gray-400">Please check your inbox and click the verification link.</p>
-            <p className="text-gray-400 mt-2">After verification, you can log in.</p>
+          <CardHeader className="text-center">
+            <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center mx-auto mb-4">
+              <KeyRound className="w-6 h-6 text-white" />
+            </div>
+            <CardTitle className="text-2xl">Verify Your Email</CardTitle>
+            <CardDescription>Enter the 6-digit code sent to {email}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-3">
+              <Label htmlFor="otp">Verification Code</Label>
+              <Input
+                id="otp"
+                type="text"
+                placeholder="Enter 6-digit code"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
+                disabled={loading}
+                className="text-center text-lg tracking-widest"
+                maxLength={6}
+              />
+              {otpError && <p className="text-red-500 text-sm">{otpError}</p>}
+              
+              <Button
+                onClick={handleVerifyOTP}
+                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium py-3 mt-2"
+                disabled={loading}
+              >
+                {loading ? "Verifying..." : "Verify Code"}
+              </Button>
+              
+              <div className="text-center mt-4">
+                <Button
+                  variant="link"
+                  onClick={resendOTP}
+                  disabled={loading}
+                  className="text-blue-400 hover:text-blue-300"
+                >
+                  Didn't receive the code? Resend
+                </Button>
+              </div>
+              
+              <div className="text-center mt-2">
+                <Button
+                  variant="link"
+                  onClick={() => setStep('signup')}
+                  disabled={loading}
+                  className="text-gray-400 hover:text-gray-300"
+                >
+                  ← Back to signup
+                </Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>

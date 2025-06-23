@@ -5,13 +5,12 @@ export class OTPService {
 
   constructor() {
     this.transporter = nodemailer.createTransport({
-      service: 'gmail',
-      host: 'smtp.gmail.com',
-      port: 587,
+      host: process.env.SMTP_HOST || 'smtp.gmail.com',
+      port: parseInt(process.env.SMTP_PORT || '587'),
       secure: false,
       auth: {
-        user: 'jhaderajat@gmail.com',
-        pass: 'ozoh zjjf nwkr ltxp'
+        user: process.env.SMTP_USER || '',
+        pass: process.env.SMTP_PASS || ''
       }
     });
   }
@@ -24,21 +23,24 @@ export class OTPService {
     try {
       const html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #4F46E5;">SkillSpring Application Tracker</h2>
-          <p>Your verification code is:</p>
+          <h2 style="color: #4F46E5;">SkillSpring Account Verification</h2>
+          <p>Thank you for signing up! Your verification code is:</p>
           <div style="background: #F3F4F6; padding: 20px; text-align: center; margin: 20px 0;">
             <h1 style="color: #1F2937; font-size: 32px; margin: 0;">${otp}</h1>
           </div>
-          <p>This code will expire in 10 minutes.</p>
+          <p>This code will expire in 5 minutes.</p>
           <p>If you didn't request this, please ignore this email.</p>
+          <p style="margin-top: 30px; font-size: 12px; color: #6B7280;">
+            This is an automated message, please do not reply to this email.
+          </p>
         </div>
       `;
 
-      // Send real email
+      // Send email
       await this.transporter.sendMail({
-        from: 'jhaderajat@gmail.com',
+        from: `"SkillSpring" <${process.env.SMTP_USER}>`,
         to: email,
-        subject: 'SkillSpring - Verify Your Gmail Access',
+        subject: 'SkillSpring - Verify Your Account',
         html
       });
       return true;

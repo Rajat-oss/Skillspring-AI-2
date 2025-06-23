@@ -58,14 +58,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const token = await userCredential.user.getIdToken()
 
       if (userData) {
+        // Store user data in localStorage
         localStorage.setItem('token', token)
         localStorage.setItem('user', JSON.stringify(userData))
         localStorage.setItem('loginTime', new Date().toISOString())
+        localStorage.setItem('user_email', email)
+        
+        // Check if email is verified in Firebase
+        if (userCredential.user.emailVerified) {
+          localStorage.setItem('gmail_verified', email)
+          localStorage.setItem('gmail_verified_at', new Date().toISOString())
+        }
+        
         setUser(userData)
-        setLoading(false)
       }
-
-
     } finally {
       setLoading(false)
     }
@@ -75,7 +81,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true)
     try {
       const userCredential = await firebaseSignup(email, password)
-      setUser(mapFirebaseUserToUser(userCredential.user))
+      const userData = mapFirebaseUserToUser(userCredential.user)
+      
+      if (userData) {
+        // Store basic user data
+        localStorage.setItem('user_email', email)
+        
+        // The OTP verification will set the verified status later
+        setUser(userData)
+      }
     } finally {
       setLoading(false)
     }
