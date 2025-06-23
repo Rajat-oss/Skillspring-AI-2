@@ -1,46 +1,54 @@
 "use client"
 
-import type React from "react"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useAuth } from "@/components/auth-provider"
 import { useToast } from "@/hooks/use-toast"
-import { Sparkles } from "lucide-react"
+import { Sparkles, Mail } from "lucide-react"
 import Link from "next/link"
 
 export default function LoginPage() {
+  const [loading, setLoading] = useState(false)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [loading, setLoading] = useState(false)
-
+  
   const router = useRouter()
-  const { login } = useAuth()
   const { toast } = useToast()
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
-
-    try {
-      await login(email, password, "individual")
-      toast({
-        title: "Welcome back!",
-        description: "You've been logged in successfully.",
-      })
-      router.push("/dashboard/individual")
-    } catch (error) {
+    
+    if (!email) {
       toast({
         title: "Error",
-        description: "Invalid credentials. Please try again.",
+        description: "Please enter your email address",
         variant: "destructive",
       })
-    } finally {
-      setLoading(false)
+      return
     }
+
+    setLoading(true)
+    
+    // Store user session data (demo login - any email works)
+    localStorage.setItem('user_email', email)
+    localStorage.setItem('gmail_verified', email)
+    localStorage.setItem('gmail_verified_at', new Date().toISOString())
+    localStorage.setItem('gmail_connected', email)
+    localStorage.setItem('gmail_connected_at', new Date().toISOString())
+    
+    toast({
+      title: "Login Successful",
+      description: "Welcome back!",
+    })
+    
+    setTimeout(() => {
+      router.push('/dashboard')
+    }, 1000)
+    
+    setLoading(false)
   }
 
   return (
@@ -54,29 +62,34 @@ export default function LoginPage() {
           <CardDescription>Sign in to your SkillSpring account</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">Gmail Address</Label>
               <Input
                 id="email"
                 type="email"
+                placeholder="your.email@gmail.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 className="bg-gray-800 border-gray-600"
               />
             </div>
-
+            
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
                 type="password"
+                placeholder="Any password (demo)"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                required
                 className="bg-gray-800 border-gray-600"
               />
+            </div>
+            
+            <div className="text-xs text-gray-500 text-center">
+              Demo mode: Enter any email to login
             </div>
 
             <Button
@@ -84,11 +97,12 @@ export default function LoginPage() {
               className="w-full bg-gradient-to-r from-green-600 to-purple-600 hover:from-green-700 hover:to-purple-700"
               disabled={loading}
             >
-              {loading ? "Signing In..." : "Sign In"}
+              <Mail className="w-4 h-4 mr-2" />
+              {loading ? "Signing in..." : "Sign In"}
             </Button>
           </form>
 
-          <div className="mt-4 text-center text-sm text-gray-400 space-y-2">
+          <div className="text-center text-sm text-gray-400 space-y-2">
             <div>
               Don't have an account?{" "}
               <Link href="/auth/signup" className="text-green-400 hover:underline">

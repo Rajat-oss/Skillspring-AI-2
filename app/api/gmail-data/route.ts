@@ -1,21 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GmailRealtimeService } from '@/lib/gmail-realtime-service';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth-config';
 
 export async function POST(request: NextRequest) {
   try {
-    const { userEmail, accessToken, action, query, messageId } = await request.json();
+    const session = await getServerSession(authOptions);
+    const { action, query, messageId } = await request.json();
     
-    console.log('Gmail API request:', { userEmail, action, hasToken: !!accessToken });
+    // Use session data if available, otherwise use request data
+    const userEmail = session?.user?.email;
+    const accessToken = (session as any)?.accessToken;
+    
+    console.log('Gmail API request:', { userEmail, action, hasToken: !!accessToken, hasSession: !!session });
     
     if (!userEmail) {
-      return NextResponse.json({ error: 'User email required' }, { status: 400 });
+      return NextResponse.json({ error: 'Please sign in to access Gmail data' }, { status: 401 });
     }
 
-    // Initialize service even without token (will use mock data)
+    // Initialize service with session data
     const gmailService = new GmailRealtimeService(accessToken || '', userEmail);
     
     let data;
-    let usingMockData = !accessToken || accessToken === 'undefined';
     
     switch (action) {
       case 'recent':
@@ -41,25 +47,17 @@ export async function POST(request: NextRequest) {
       data,
       userEmail: userEmail,
       timestamp: new Date().toISOString(),
-      usingMockData,
-      message: usingMockData ? 'Using demo data - connect Gmail for real emails' : 'Live Gmail data'
+      message: 'Live Gmail data'
     });
 
   } catch (error) {
     console.error('Gmail data error:', error);
     
-    // Return mock data as fallback
-    const { userEmail } = await request.json().catch(() => ({ userEmail: 'demo@example.com' }));
-    const { MockGmailService } = await import('@/lib/mock-gmail-service');
-    const mockService = new MockGmailService(userEmail);
-    
     return NextResponse.json({
-      success: true,
-      data: await mockService.getRecentEmails(),
-      userEmail,
-      timestamp: new Date().toISOString(),
-      usingMockData: true,
-      message: 'Using demo data due to connection issues'
-    });
+      success: false,
+      error: 'Failed to fetch Gmail data',
+      message: 'Please check your Gmail connection and try again',
+      timestamp: new Date().toISOString()
+    }, { status: 500 });
   }
 }

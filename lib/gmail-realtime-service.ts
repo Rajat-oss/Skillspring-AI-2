@@ -28,56 +28,31 @@ export class GmailRealtimeService {
     }
   }
 
-  async getRecentEmails(maxResults: number = 20) {
-    // Use mock service if Gmail not properly initialized
+  async getRecentEmails(maxResults: number = 50) {
     if (!this.gmail) {
-      console.log('Gmail not initialized, using mock data');
-      const mockService = new MockGmailService(this.userEmail);
-      return await mockService.getRecentEmails();
+      throw new Error('Gmail not initialized - please sign in again');
     }
 
     try {
       console.log(`Fetching emails for user: ${this.userEmail}`);
       
-      // Test token validity first
-      await this.gmail.users.getProfile({ userId: 'me' });
-      
-      const oneMonthAgo = new Date();
-      oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-      const year = oneMonthAgo.getFullYear();
-      const month = String(oneMonthAgo.getMonth() + 1).padStart(2, '0');
-      const day = String(oneMonthAgo.getDate()).padStart(2, '0');
-      const afterDate = `${year}/${month}/${day}`;
-      
-      console.log(`Searching emails after: ${afterDate}`);
-      
-      let response;
-      try {
-        response = await this.gmail.users.messages.list({
-          userId: 'me',
-          q: `after:${afterDate}`,
-          maxResults: 10
-        });
-      } catch (error) {
-        console.log('Date query failed, trying simple inbox query');
-        response = await this.gmail.users.messages.list({
-          userId: 'me',
-          q: 'in:inbox',
-          maxResults: 10
-        });
-      }
+      // Get recent emails from inbox
+      const response = await this.gmail.users.messages.list({
+        userId: 'me',
+        q: 'in:inbox',
+        maxResults: maxResults
+      });
 
       if (!response.data.messages) {
-        console.log('No messages found, using mock data');
-        const mockService = new MockGmailService(this.userEmail);
-        return await mockService.getRecentEmails();
+        console.log('No messages found');
+        return [];
       }
 
       console.log(`Found ${response.data.messages.length} messages`);
       const emails = [];
-      const messagesToProcess = response.data.messages.slice(0, 5);
       
-      for (const message of messagesToProcess) {
+      // Process all messages
+      for (const message of response.data.messages) {
         try {
           const emailData = await this.gmail.users.messages.get({
             userId: 'me',
@@ -85,16 +60,20 @@ export class GmailRealtimeService {
           });
 
           const headers = emailData.data.payload.headers;
-          const subject = headers.find((h: any) => h.name === 'Subject')?.value || '';
-          const from = headers.find((h: any) => h.name === 'From')?.value || '';
+          const subject = headers.find((h: any) => h.name === 'Subject')?.value || 'No Subject';
+          const from = headers.find((h: any) => h.name === 'From')?.value || 'Unknown Sender';
           const date = headers.find((h: any) => h.name === 'Date')?.value || '';
+          const to = headers.find((h: any) => h.name === 'To')?.value || '';
 
           emails.push({
             id: message.id,
             subject,
             from,
+            to,
             date: new Date(date),
-            snippet: emailData.data.snippet,
+            snippet: emailData.data.snippet || '',
+            threadId: emailData.data.threadId,
+            labelIds: emailData.data.labelIds || [],
             userEmail: this.userEmail
           });
         } catch (emailError) {
@@ -102,18 +81,16 @@ export class GmailRealtimeService {
         }
       }
 
-      return emails.length > 0 ? emails : await new MockGmailService(this.userEmail).getRecentEmails();
+      return emails;
     } catch (error) {
-      console.error('Error fetching emails, using mock data:', error);
-      const mockService = new MockGmailService(this.userEmail);
-      return await mockService.getRecentEmails();
+      console.error('Error fetching emails:', error);
+      throw error;
     }
   }
 
   async getUnreadCount() {
     if (!this.gmail) {
-      const mockService = new MockGmailService(this.userEmail);
-      return await mockService.getUnreadCount();
+      throw new Error('Gmail not initialized');
     }
 
     try {
@@ -123,9 +100,8 @@ export class GmailRealtimeService {
       });
       return response.data.resultSizeEstimate || 0;
     } catch (error) {
-      console.error('Error getting unread count, using mock data:', error);
-      const mockService = new MockGmailService(this.userEmail);
-      return await mockService.getUnreadCount();
+      console.error('Error getting unread count:', error);
+      return 0;
     }
   }
 

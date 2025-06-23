@@ -1,17 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GmailService } from '@/lib/gmail-service';
 import { MockApplicationsService } from '@/lib/mock-applications-service';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth-config';
 
 export async function POST(request: NextRequest) {
   let requestBody: any;
   
   try {
-    // Parse request body once and store it
-    requestBody = await request.json();
-    const { userEmail, accessToken } = requestBody;
+    const session = await getServerSession(authOptions);
+    
+    // Use session data if available
+    const userEmail = session?.user?.email;
+    const accessToken = (session as any)?.accessToken;
     
     if (!userEmail) {
-      return NextResponse.json({ error: 'User email required' }, { status: 400 });
+      return NextResponse.json({ error: 'Please sign in to access your applications' }, { status: 401 });
     }
 
     const gmailService = new GmailService(userEmail, accessToken);
@@ -53,13 +57,12 @@ export async function POST(request: NextRequest) {
       console.error('Fallback error:', fallbackError);
     }
     
-    // Return mock data instead of empty arrays
-    const mockData = MockApplicationsService.getMockApplications();
     return NextResponse.json({ 
       success: true,
-      ...mockData,
-      insights: `Demo data: Found ${mockData.jobs.length} job applications, ${mockData.internships.length} internships, and ${mockData.hackathons.length} hackathons. Connect Gmail for real data.`,
-      usingMockData: true
+      jobs: [],
+      internships: [],
+      hackathons: [],
+      insights: 'No applications found. Gmail data will be analyzed for job applications, internships, and hackathons.'
     });
   }
 }
