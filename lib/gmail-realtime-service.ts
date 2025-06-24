@@ -1,5 +1,4 @@
 import { google } from 'googleapis';
-import { MockGmailService } from './mock-gmail-service';
 
 export class GmailRealtimeService {
   private gmail: any;
@@ -11,21 +10,16 @@ export class GmailRealtimeService {
     this.userEmail = userEmail;
     
     if (!accessToken || accessToken === 'undefined' || accessToken === 'null') {
-      console.warn('Invalid access token provided, will use mock data');
-      return;
+      throw new Error('Valid access token is required for Gmail access');
     }
     
-    try {
-      const auth = new google.auth.OAuth2(
-        process.env.GOOGLE_CLIENT_ID,
-        process.env.GOOGLE_CLIENT_SECRET
-      );
-      auth.setCredentials({ access_token: accessToken });
-      this.gmail = google.gmail({ version: 'v1', auth });
-      console.log(`Gmail service initialized for user: ${userEmail}`);
-    } catch (error) {
-      console.error('Failed to initialize Gmail service:', error);
-    }
+    const auth = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET
+    );
+    auth.setCredentials({ access_token: accessToken });
+    this.gmail = google.gmail({ version: 'v1', auth });
+    console.log(`Gmail service initialized for user: ${userEmail}`);
   }
 
   async getRecentEmails(maxResults: number = 50) {
@@ -106,6 +100,10 @@ export class GmailRealtimeService {
   }
 
   async getFullEmail(messageId: string) {
+    if (!this.gmail) {
+      throw new Error('Gmail not initialized');
+    }
+    
     try {
       const emailData = await this.gmail.users.messages.get({
         userId: 'me',
@@ -156,6 +154,10 @@ export class GmailRealtimeService {
   }
 
   async searchEmails(query: string) {
+    if (!this.gmail) {
+      throw new Error('Gmail not initialized');
+    }
+    
     try {
       const response = await this.gmail.users.messages.list({
         userId: 'me',
@@ -177,8 +179,12 @@ export class GmailRealtimeService {
           id: message.id,
           subject: headers.find((h: any) => h.name === 'Subject')?.value || '',
           from: headers.find((h: any) => h.name === 'From')?.value || '',
+          to: headers.find((h: any) => h.name === 'To')?.value || '',
           date: new Date(headers.find((h: any) => h.name === 'Date')?.value || ''),
-          snippet: emailData.data.snippet
+          snippet: emailData.data.snippet,
+          threadId: emailData.data.threadId,
+          labelIds: emailData.data.labelIds || [],
+          userEmail: this.userEmail
         });
       }
 

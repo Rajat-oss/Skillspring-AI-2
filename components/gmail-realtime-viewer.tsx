@@ -35,8 +35,11 @@ export function GmailRealtimeViewer() {
   const [loadingEmail, setLoadingEmail] = useState(false)
 
   const fetchGmailData = async (action: string = 'recent', query?: string) => {
-    if (!session?.user?.email || !session?.accessToken) {
-      console.log('No valid session or token')
+    // Get user email from session or localStorage
+    const userEmail = session?.user?.email || localStorage.getItem('user_email');
+    
+    if (!userEmail) {
+      console.log('No user email available')
       return
     }
     
@@ -48,8 +51,8 @@ export function GmailRealtimeViewer() {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          userEmail: session.user.email,
-          accessToken: session.accessToken,
+          userEmail: userEmail,
+          accessToken: session?.accessToken,
           action,
           query
         })
@@ -68,6 +71,10 @@ export function GmailRealtimeViewer() {
         setLastUpdate(new Date())
       } else {
         console.log('Failed to fetch Gmail data:', data.error)
+        // If auth required, show appropriate message
+        if (data.authRequired) {
+          console.log('Gmail authorization required')
+        }
       }
     } catch (error) {
       console.error('Error fetching Gmail data:', error)
@@ -85,7 +92,8 @@ export function GmailRealtimeViewer() {
   }
 
   const fetchFullEmail = async (messageId: string) => {
-    if (!session?.user?.email || !session?.accessToken) return
+    const userEmail = session?.user?.email || localStorage.getItem('user_email');
+    if (!userEmail) return
     
     setLoadingEmail(true)
     try {
@@ -93,8 +101,8 @@ export function GmailRealtimeViewer() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userEmail: session.user.email,
-          accessToken: session.accessToken,
+          userEmail: userEmail,
+          accessToken: session?.accessToken,
           action: 'fullEmail',
           messageId
         })
@@ -128,7 +136,9 @@ export function GmailRealtimeViewer() {
     return () => clearInterval(interval)
   }, [session])
 
-  if (!session?.user?.email) {
+  const userEmail = session?.user?.email || localStorage.getItem('user_email');
+  
+  if (!userEmail) {
     return (
       <Card className="bg-gray-900/50 border-gray-700">
         <CardContent className="p-6 text-center">
@@ -149,7 +159,7 @@ export function GmailRealtimeViewer() {
             Gmail Real-Time Data
           </h2>
           <p className="text-gray-400 text-sm">
-            {session.user.email} • {lastUpdate && `Last updated: ${lastUpdate.toLocaleTimeString()}`}
+            {userEmail} • {lastUpdate && `Last updated: ${lastUpdate.toLocaleTimeString()}`}
           </p>
         </div>
         <div className="flex items-center space-x-4">
