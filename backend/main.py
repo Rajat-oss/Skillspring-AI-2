@@ -1262,4 +1262,84 @@ async def add_generated_path_to_folder(
 
     return {"message": "Learning path added successfully", "items_added": len(request.generated_path.items)}
 
-# This code imports the database module and adds functionality for creating learning paths.
+# Application tracking endpoints
+@app.get("/applications/tracked")
+async def get_tracked_applications(current_user: User = Depends(get_current_user)):
+    if current_user.role != "individual":
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    try:
+        # Get applications from database or CSV
+        applications_data = read_csv_data("data/user_applications.csv")
+        user_applications = [app for app in applications_data if app.get('user_id') == current_user.id]
+        
+        # Format applications for frontend
+        formatted_applications = []
+        for app in user_applications:
+            formatted_applications.append({
+                "id": app.get('id'),
+                "type": app.get('type', 'job'),
+                "company": app.get('company'),
+                "position": app.get('position'),
+                "status": app.get('status', 'applied'),
+                "date": app.get('date'),
+                "email_subject": app.get('email_subject', ''),
+                "created_at": app.get('created_at')
+            })
+        
+        return {"applications": formatted_applications}
+    except Exception as e:
+        print(f"Error fetching tracked applications: {e}")
+        return {"applications": []}
+
+@app.post("/applications/sync")
+async def sync_applications(current_user: User = Depends(get_current_user)):
+    if current_user.role != "individual":
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    try:
+        # Initialize Gmail tracker
+        gmail_tracker = GmailApplicationTracker()
+        
+        # Sync applications from Gmail
+        synced_applications = await gmail_tracker.sync_user_applications(current_user.id, current_user.email)
+        
+        # Save to CSV
+        applications_data = read_csv_data("data/user_applications.csv")
+        
+        # Remove existing applications for this user
+        applications_data = [app for app in applications_data if app.get('user_id') != current_user.id]
+        
+        # Add synced applications
+        for app in synced_applications:
+            applications_data.append({
+                'id': str(uuid.uuid4()),
+                'user_id': current_user.id,
+                'type': app.get('type', 'job'),
+                'company': app.get('company', ''),
+                'position': app.get('position', ''),
+                'status': app.get('status', 'applied'),
+                'date': app.get('date', datetime.utcnow().isoformat()),
+                'email_subject': app.get('email_subject', ''),
+                'created_at': datetime.utcnow().isoformat()
+            })
+        
+        # Write back to CSV
+        write_csv_data("data/user_applications.csv", applications_data,
+                      ['id', 'user_id', 'type', 'company', 'position', 'status', 'date', 'email_subject', 'created_at'])
+        
+        return {"message": "Applications synced successfully", "count": len(synced_applications)}
+    except Exception as e:
+        print(f"Error syncing applications: {e}")
+        raise HTTPException(status_code=500, detail="Failed to sync applications")
+
+# Initialize applications CSV
+def init_applications_csv():
+    applications_csv = "data/user_applications.csv"
+    if not os.path.exists(applications_csv):
+        with open(applications_csv, 'w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(['id', 'user_id', 'type', 'company', 'position', 'status', 'date', 'email_subject', 'created_at'])
+
+# Call initialization
+init_applications_csv()

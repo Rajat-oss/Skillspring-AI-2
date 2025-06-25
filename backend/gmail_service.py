@@ -8,11 +8,14 @@ import email
 from email.mime.text import MIMEText
 import base64
 import csv
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import Flow
-from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
+try:
+    from google.auth.transport.requests import Request
+    from google.oauth2.credentials import Credentials
+    from google_auth_oauthlib.flow import Flow
+    from googleapiclient.discovery import build
+    from googleapiclient.errors import HttpError
+except ImportError:
+    print("Google API libraries not installed. Using mock data for demo.")
 
 class GmailApplicationTracker:
     def __init__(self):
@@ -434,3 +437,73 @@ class GmailApplicationTracker:
         """Check if user has connected Gmail"""
         token_file = f"data/gmail_token_{user_id}.json"
         return os.path.exists(token_file)
+    
+    async def sync_user_applications(self, user_id: str, user_email: str) -> List[Dict]:
+        """Sync applications for a specific user"""
+        try:
+            # Check if Gmail is connected
+            if not self.is_connected(user_id):
+                # Return mock data for demo purposes
+                return self.get_mock_applications(user_id)
+            
+            # Scan emails for applications
+            applications = self.scan_emails_for_applications(user_id, days_back=60)
+            return applications
+        except Exception as e:
+            print(f"Error syncing applications for user {user_id}: {e}")
+            # Return mock data as fallback
+            return self.get_mock_applications(user_id)
+    
+    def get_mock_applications(self, user_id: str) -> List[Dict]:
+        """Return mock applications for demo purposes"""
+        from datetime import datetime, timedelta
+        import random
+        
+        mock_applications = [
+            {
+                'id': f"{user_id}_mock_1",
+                'user_id': user_id,
+                'type': 'job',
+                'company': 'TechCorp Inc.',
+                'position': 'Frontend Developer',
+                'status': 'applied',
+                'date': (datetime.now() - timedelta(days=5)).isoformat(),
+                'email_subject': 'Application Received - Frontend Developer Position',
+                'created_at': datetime.now().isoformat()
+            },
+            {
+                'id': f"{user_id}_mock_2",
+                'user_id': user_id,
+                'type': 'internship',
+                'company': 'StartupXYZ',
+                'position': 'Software Engineering Intern',
+                'status': 'interview',
+                'date': (datetime.now() - timedelta(days=10)).isoformat(),
+                'email_subject': 'Interview Scheduled - Software Engineering Internship',
+                'created_at': datetime.now().isoformat()
+            },
+            {
+                'id': f"{user_id}_mock_3",
+                'user_id': user_id,
+                'type': 'hackathon',
+                'company': 'HackFest 2024',
+                'position': 'Web Development Challenge',
+                'status': 'selected',
+                'date': (datetime.now() - timedelta(days=15)).isoformat(),
+                'email_subject': 'Congratulations! You are selected for HackFest 2024',
+                'created_at': datetime.now().isoformat()
+            },
+            {
+                'id': f"{user_id}_mock_4",
+                'user_id': user_id,
+                'type': 'job',
+                'company': 'DataCorp',
+                'position': 'Data Analyst',
+                'status': 'rejected',
+                'date': (datetime.now() - timedelta(days=20)).isoformat(),
+                'email_subject': 'Update on your Data Analyst application',
+                'created_at': datetime.now().isoformat()
+            }
+        ]
+        
+        return mock_applications

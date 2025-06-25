@@ -34,6 +34,10 @@ export default function ApplicationsPage() {
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
+  const [lastSync, setLastSync] = useState<Date | null>(null)
+  const [autoRefresh, setAutoRefresh] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'checking'>('checking')
   const router = useRouter()
 
   useEffect(() => {
@@ -44,7 +48,19 @@ export default function ApplicationsPage() {
     }
     setUserEmail(email)
     loadApplications(email)
+    fetchApplicationsFromAPI()
   }, [router])
+
+  // Auto-refresh every 30 seconds
+  useEffect(() => {
+    if (!autoRefresh || !userEmail) return
+    
+    const interval = setInterval(() => {
+      fetchApplicationsFromAPI()
+    }, 30000)
+    
+    return () => clearInterval(interval)
+  }, [autoRefresh, userEmail])
 
   useEffect(() => {
     filterApplications()
@@ -54,104 +70,219 @@ export default function ApplicationsPage() {
     const cachedApplications = localStorage.getItem(`applications_${email}`)
     if (cachedApplications) {
       const parsed = JSON.parse(cachedApplications)
-      setApplications(parsed)
+      // Convert date strings back to Date objects
+      const convertDates = (apps: Application[]) => {
+        return apps.map(app => ({
+          ...app,
+          date: new Date(app.date)
+        }))
+      }
+      
+      const applicationsWithDates = {
+        jobs: convertDates(parsed.jobs || []),
+        internships: convertDates(parsed.internships || []),
+        hackathons: convertDates(parsed.hackathons || [])
+      }
+      
+      setApplications(applicationsWithDates)
     }
   }
 
-  const analyzeApplications = async () => {
+  const fetchApplicationsFromAPI = async () => {
+    if (!userEmail) return
+    
+    setLoading(true)
+    setError(null)
+    setConnectionStatus('checking')
+    
+    try {
+      // Try to fetch from tracked applications API first
+      const authToken = localStorage.getItem('auth_token')
+      if (authToken) {
+        const response = await fetch('/api/applications/tracked', {
+          headers: {
+            'Authorization': `Bearer ${authToken}`,
+            'Content-Type': 'application/json'
+          }
+        })
+        
+        if (response.ok) {
+          const data = await response.json()
+          if (data.applications) {
+            const processedApplications = processAPIApplications(data.applications)
+            setApplications(processedApplications)
+            localStorage.setItem(`applications_${userEmail}`, JSON.stringify(processedApplications))
+            setLastSync(new Date())
+            setConnectionStatus('connected')
+            return
+          }
+        } else if (response.status === 401) {
+          setError('Authentication failed. Please log in again.')
+          setConnectionStatus('disconnected')
+        } else {
+          throw new Error(`API responded with status: ${response.status}`)
+        }
+      }
+      
+      // Fallback to local analysis
+      setConnectionStatus('disconnected')
+      await analyzeApplicationsLocally()
+      
+    } catch (error) {
+      console.error('Error fetching applications from API:', error)
+      setError('Failed to connect to server. Using cached data.')
+      setConnectionStatus('disconnected')
+      // Fallback to local analysis
+      await analyzeApplicationsLocally()
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const processAPIApplications = (apiApplications: any[]) => {
+    const categorized = {
+      jobs: [] as Application[],
+      internships: [] as Application[],
+      hackathons: [] as Application[]
+    }
+    
+    apiApplications.forEach((app: any) => {
+      const application: Application = {
+        id: app.id || app.email_id,
+        type: app.type || 'job',
+        company: app.company || extractCompany(app.from || ''),
+        position: app.position || app.title || extractPosition(app.subject || ''),
+        status: app.status || 'applied',
+        date: new Date(app.date || app.created_at),
+        emailSubject: app.subject || app.email_subject || ''
+      }
+      
+      if (application.type === 'job') {
+        categorized.jobs.push(application)
+      } else if (application.type === 'internship') {
+        categorized.internships.push(application)
+      } else if (application.type === 'hackathon') {
+        categorized.hackathons.push(application)
+      }
+    })
+    
+    return categorized
+  }
+
+  const analyzeApplicationsLocally = async () => {
+    const cachedEmails = localStorage.getItem(`gmail_emails_${userEmail}`)
+    if (!cachedEmails) return
+    
+    const emails = JSON.parse(cachedEmails)
+    const analyzedApplications = {
+      jobs: [] as Application[],
+      internships: [] as Application[],
+      hackathons: [] as Application[]
+    }
+    
+    emails.forEach((email: any) => {
+      const subject = email.subject.toLowerCase()
+      const from = email.from.toLowerCase()
+      const snippet = email.snippet?.toLowerCase() || ''
+      
+      // Enhanced job application detection
+      if (subject.includes('job') || subject.includes('position') || subject.includes('career') || 
+          subject.includes('application received') || subject.includes('thank you for applying') ||
+          from.includes('careers') || from.includes('jobs') || from.includes('hr') ||
+          snippet.includes('job application') || snippet.includes('position') ||
+          subject.includes('software engineer') || subject.includes('developer') ||
+          subject.includes('analyst') || subject.includes('manager')) {
+        
+        let status: Application['status'] = 'applied'
+        if (subject.includes('interview') || subject.includes('selected for interview') || snippet.includes('interview')) status = 'interview'
+        if (subject.includes('congratulations') || subject.includes('offer') || subject.includes('selected') || subject.includes('hired')) status = 'selected'
+        if (subject.includes('rejected') || subject.includes('not selected') || subject.includes('unsuccessful') || subject.includes('regret')) status = 'rejected'
+        
+        analyzedApplications.jobs.push({
+          id: email.id,
+          type: 'job',
+          company: extractCompany(email.from),
+          position: extractPosition(email.subject),
+          status,
+          date: new Date(email.date),
+          emailSubject: email.subject
+        })
+      }
+      
+      // Enhanced internship detection
+      else if (subject.includes('internship') || subject.includes('intern') || 
+               subject.includes('summer program') || subject.includes('training program') ||
+               snippet.includes('internship') || snippet.includes('intern program')) {
+        
+        let status: Application['status'] = 'applied'
+        if (subject.includes('interview') || snippet.includes('interview')) status = 'interview'
+        if (subject.includes('congratulations') || subject.includes('offer') || subject.includes('selected')) status = 'selected'
+        if (subject.includes('rejected') || subject.includes('not selected')) status = 'rejected'
+        
+        analyzedApplications.internships.push({
+          id: email.id,
+          type: 'internship',
+          company: extractCompany(email.from),
+          position: extractPosition(email.subject),
+          status,
+          date: new Date(email.date),
+          emailSubject: email.subject
+        })
+      }
+      
+      // Enhanced hackathon detection
+      else if (subject.includes('hackathon') || subject.includes('hack') || 
+               subject.includes('coding competition') || subject.includes('dev fest') ||
+               subject.includes('registration confirmed') && (from.includes('hack') || from.includes('dev')) ||
+               snippet.includes('hackathon') || snippet.includes('coding competition')) {
+        
+        let status: Application['status'] = 'applied'
+        if (subject.includes('selected') || subject.includes('accepted')) status = 'selected'
+        
+        analyzedApplications.hackathons.push({
+          id: email.id,
+          type: 'hackathon',
+          company: extractCompany(email.from),
+          position: extractHackathonName(email.subject),
+          status,
+          date: new Date(email.date),
+          emailSubject: email.subject
+        })
+      }
+    })
+    
+    setApplications(analyzedApplications)
+    localStorage.setItem(`applications_${userEmail}`, JSON.stringify(analyzedApplications))
+    setLastSync(new Date())
+  }
+
+  const syncApplications = async () => {
     if (!userEmail) return
     
     setLoading(true)
     try {
-      const cachedEmails = localStorage.getItem(`gmail_emails_${userEmail}`)
-      if (!cachedEmails) {
-        setLoading(false)
-        return
+      const authToken = localStorage.getItem('auth_token')
+      if (authToken) {
+        const response = await fetch('/api/applications/sync', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${authToken}`,
+            'Content-Type': 'application/json'
+          }
+        })
+        
+        if (response.ok) {
+          await fetchApplicationsFromAPI()
+          return
+        }
       }
       
-      const emails = JSON.parse(cachedEmails)
-      const analyzedApplications = {
-        jobs: [] as Application[],
-        internships: [] as Application[],
-        hackathons: [] as Application[]
-      }
-      
-      emails.forEach((email: any) => {
-        const subject = email.subject.toLowerCase()
-        const from = email.from.toLowerCase()
-        const snippet = email.snippet?.toLowerCase() || ''
-        
-        // Enhanced job application detection
-        if (subject.includes('job') || subject.includes('position') || subject.includes('career') || 
-            subject.includes('application received') || subject.includes('thank you for applying') ||
-            from.includes('careers') || from.includes('jobs') || from.includes('hr') ||
-            snippet.includes('job application') || snippet.includes('position') ||
-            subject.includes('software engineer') || subject.includes('developer') ||
-            subject.includes('analyst') || subject.includes('manager')) {
-          
-          let status: Application['status'] = 'applied'
-          if (subject.includes('interview') || subject.includes('selected for interview') || snippet.includes('interview')) status = 'interview'
-          if (subject.includes('congratulations') || subject.includes('offer') || subject.includes('selected') || subject.includes('hired')) status = 'selected'
-          if (subject.includes('rejected') || subject.includes('not selected') || subject.includes('unsuccessful') || subject.includes('regret')) status = 'rejected'
-          
-          analyzedApplications.jobs.push({
-            id: email.id,
-            type: 'job',
-            company: extractCompany(email.from),
-            position: extractPosition(email.subject),
-            status,
-            date: new Date(email.date),
-            emailSubject: email.subject
-          })
-        }
-        
-        // Enhanced internship detection
-        else if (subject.includes('internship') || subject.includes('intern') || 
-                 subject.includes('summer program') || subject.includes('training program') ||
-                 snippet.includes('internship') || snippet.includes('intern program')) {
-          
-          let status: Application['status'] = 'applied'
-          if (subject.includes('interview') || snippet.includes('interview')) status = 'interview'
-          if (subject.includes('congratulations') || subject.includes('offer') || subject.includes('selected')) status = 'selected'
-          if (subject.includes('rejected') || subject.includes('not selected')) status = 'rejected'
-          
-          analyzedApplications.internships.push({
-            id: email.id,
-            type: 'internship',
-            company: extractCompany(email.from),
-            position: extractPosition(email.subject),
-            status,
-            date: new Date(email.date),
-            emailSubject: email.subject
-          })
-        }
-        
-        // Enhanced hackathon detection
-        else if (subject.includes('hackathon') || subject.includes('hack') || 
-                 subject.includes('coding competition') || subject.includes('dev fest') ||
-                 subject.includes('registration confirmed') && (from.includes('hack') || from.includes('dev')) ||
-                 snippet.includes('hackathon') || snippet.includes('coding competition')) {
-          
-          let status: Application['status'] = 'applied'
-          if (subject.includes('selected') || subject.includes('accepted')) status = 'selected'
-          
-          analyzedApplications.hackathons.push({
-            id: email.id,
-            type: 'hackathon',
-            company: extractCompany(email.from),
-            position: extractHackathonName(email.subject),
-            status,
-            date: new Date(email.date),
-            emailSubject: email.subject
-          })
-        }
-      })
-      
-      setApplications(analyzedApplications)
-      localStorage.setItem(`applications_${userEmail}`, JSON.stringify(analyzedApplications))
+      // Fallback to local analysis
+      await analyzeApplicationsLocally()
       
     } catch (error) {
-      console.error('Error analyzing applications:', error)
+      console.error('Error syncing applications:', error)
+      await analyzeApplicationsLocally()
     } finally {
       setLoading(false)
     }
@@ -222,6 +353,26 @@ export default function ApplicationsPage() {
       </div>
       
       <div className="relative z-10 container mx-auto px-4 py-6 max-w-7xl">
+        {/* Connection Status & Error */}
+        {error && (
+          <div className="mb-4 p-3 bg-yellow-900/50 border border-yellow-600/50 rounded-lg">
+            <p className="text-yellow-400 text-sm">{error}</p>
+          </div>
+        )}
+        
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-2">
+            <div className={`w-2 h-2 rounded-full ${
+              connectionStatus === 'connected' ? 'bg-green-400' :
+              connectionStatus === 'disconnected' ? 'bg-red-400' : 'bg-yellow-400 animate-pulse'
+            }`}></div>
+            <span className="text-sm text-gray-400">
+              {connectionStatus === 'connected' ? 'Connected to server' :
+               connectionStatus === 'disconnected' ? 'Using cached data' : 'Checking connection...'}
+            </span>
+          </div>
+        </div>
+
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center space-x-6">
@@ -244,15 +395,44 @@ export default function ApplicationsPage() {
             </div>
           </div>
           
-          <Button
-            onClick={analyzeApplications}
-            disabled={loading}
-            className="bg-gradient-to-r from-blue-600 to-green-600 hover:from-blue-700 hover:to-green-700"
-          >
-            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            {loading ? 'Analyzing...' : 'Analyze Applications'}
-          </Button>
+          <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="autoRefresh"
+                checked={autoRefresh}
+                onChange={(e) => setAutoRefresh(e.target.checked)}
+                className="rounded"
+              />
+              <label htmlFor="autoRefresh" className="text-sm text-gray-400">
+                Auto-refresh
+              </label>
+            </div>
+            
+            <Button
+              onClick={syncApplications}
+              disabled={loading}
+              className={`${
+                connectionStatus === 'connected' 
+                  ? 'bg-gradient-to-r from-blue-600 to-green-600 hover:from-blue-700 hover:to-green-700'
+                  : 'bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800'
+              }`}
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+              {loading ? 'Syncing...' : connectionStatus === 'connected' ? 'Sync Applications' : 'Retry Connection'}
+            </Button>
+          </div>
         </div>
+
+        {/* Last Sync Info */}
+        {lastSync && (
+          <div className="mb-4 text-center">
+            <p className="text-sm text-gray-400">
+              Last synced: {lastSync.toLocaleString()}
+              {autoRefresh && <span className="ml-2 text-green-400">(Auto-refresh enabled)</span>}
+            </p>
+          </div>
+        )}
 
         {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
@@ -357,12 +537,16 @@ export default function ApplicationsPage() {
                         {job.status}
                       </Badge>
                     </div>
-                    <p className="text-xs text-gray-500">{job.date.toLocaleDateString()}</p>
+                    <p className="text-xs text-gray-500">{job.date instanceof Date ? job.date.toLocaleDateString() : new Date(job.date).toLocaleDateString()}</p>
                     <p className="text-xs text-gray-400 mt-1 truncate">{job.emailSubject}</p>
                   </div>
                 ))}
                 {filteredApplications.jobs.length === 0 && (
-                  <p className="text-gray-400 text-center py-4">No job applications found</p>
+                  <div className="text-center py-8">
+                    <Briefcase className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+                    <p className="text-gray-400">No job applications found</p>
+                    <p className="text-sm text-gray-500 mt-1">Click "Sync Applications" to fetch latest data</p>
+                  </div>
                 )}
               </div>
             </CardContent>
@@ -393,12 +577,16 @@ export default function ApplicationsPage() {
                         {internship.status}
                       </Badge>
                     </div>
-                    <p className="text-xs text-gray-500">{internship.date.toLocaleDateString()}</p>
+                    <p className="text-xs text-gray-500">{internship.date instanceof Date ? internship.date.toLocaleDateString() : new Date(internship.date).toLocaleDateString()}</p>
                     <p className="text-xs text-gray-400 mt-1 truncate">{internship.emailSubject}</p>
                   </div>
                 ))}
                 {filteredApplications.internships.length === 0 && (
-                  <p className="text-gray-400 text-center py-4">No internship applications found</p>
+                  <div className="text-center py-8">
+                    <GraduationCap className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+                    <p className="text-gray-400">No internship applications found</p>
+                    <p className="text-sm text-gray-500 mt-1">Click "Sync Applications" to fetch latest data</p>
+                  </div>
                 )}
               </div>
             </CardContent>
@@ -428,12 +616,16 @@ export default function ApplicationsPage() {
                         {hackathon.status}
                       </Badge>
                     </div>
-                    <p className="text-xs text-gray-500">{hackathon.date.toLocaleDateString()}</p>
+                    <p className="text-xs text-gray-500">{hackathon.date instanceof Date ? hackathon.date.toLocaleDateString() : new Date(hackathon.date).toLocaleDateString()}</p>
                     <p className="text-xs text-gray-400 mt-1 truncate">{hackathon.emailSubject}</p>
                   </div>
                 ))}
                 {filteredApplications.hackathons.length === 0 && (
-                  <p className="text-gray-400 text-center py-4">No hackathon applications found</p>
+                  <div className="text-center py-8">
+                    <Code className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+                    <p className="text-gray-400">No hackathon applications found</p>
+                    <p className="text-sm text-gray-500 mt-1">Click "Sync Applications" to fetch latest data</p>
+                  </div>
                 )}
               </div>
             </CardContent>
