@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Mail, ArrowRight, Bot, MessageCircle, Briefcase, LogOut, User, Clock, X, Sparkles, Zap, Target } from "lucide-react"
 import Link from "next/link"
+import { UserProfileDisplay } from "@/components/user-profile-display"
 
 export default function DashboardPage() {
   const [userEmail, setUserEmail] = useState<string | null>(null)
@@ -156,14 +157,14 @@ export default function DashboardPage() {
       <div className="container mx-auto px-4 py-8 relative z-10">
         {/* Welcome Card */}
         <div className="glass-card rounded-2xl p-6 mb-8 glow-blue">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between space-y-4 lg:space-y-0">
             <div className="flex items-center space-x-4">
               <div className="w-16 h-16 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center pulse-glow">
                 <User className="w-8 h-8 text-white" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                  Welcome, {username || userEmail}!
+                <h1 className="welcome-text font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                  Welcome, {username || userEmail?.split('@')[0] || 'User'}!
                 </h1>
                 <p className="text-gray-300 flex items-center mt-1">
                   <Clock className="w-4 h-4 mr-2" />
@@ -171,14 +172,22 @@ export default function DashboardPage() {
                 </p>
               </div>
             </div>
-            <Button
-              onClick={handleLogout}
-              variant="outline"
-              className="border-red-500/50 text-red-400 hover:bg-red-500/10 hover:border-red-400 transition-all duration-300"
-            >
-              <LogOut className="w-4 h-4 mr-2" />
-              Logout
-            </Button>
+            
+            {/* User Profile & Logout Section */}
+            <div className="profile-container flex flex-col sm:flex-row items-stretch sm:items-center space-y-3 sm:space-y-0 sm:space-x-4 w-full lg:w-auto">
+              <UserProfileDisplay 
+                size="md" 
+                className="w-full sm:w-auto min-w-[200px]" 
+              />
+              <Button
+                onClick={handleLogout}
+                variant="outline"
+                className="border-red-500/50 text-red-400 hover:bg-red-500/10 hover:border-red-400 transition-all duration-300 w-full sm:w-auto"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Logout
+              </Button>
+            </div>
           </div>
         </div>
         {/* Main Dashboard Grid */}

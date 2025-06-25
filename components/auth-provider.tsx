@@ -64,6 +64,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem('loginTime', new Date().toISOString())
         localStorage.setItem('user_email', email)
         
+        // Extract username from email if not already stored
+        const existingUsername = localStorage.getItem('user_username')
+        if (!existingUsername) {
+          const emailPrefix = email.split('@')[0]
+          const formattedUsername = emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1)
+          localStorage.setItem('user_username', formattedUsername)
+        }
+        
         // Check if email is verified in Firebase
         if (userCredential.user.emailVerified) {
           localStorage.setItem('gmail_verified', email)
@@ -87,6 +95,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Store basic user data
         localStorage.setItem('user_email', email)
         
+        // Extract username from email if not provided
+        const existingUsername = localStorage.getItem('user_username')
+        if (!existingUsername) {
+          const emailPrefix = email.split('@')[0]
+          const formattedUsername = emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1)
+          localStorage.setItem('user_username', formattedUsername)
+        }
+        
         // The OTP verification will set the verified status later
         setUser(userData)
       }
@@ -105,6 +121,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem('gmail_connected_at')
       localStorage.removeItem('token')
       localStorage.removeItem('user')
+      localStorage.removeItem('user_username')
       localStorage.removeItem('loginTime')
       console.log('Cleared all user data on logout')
       

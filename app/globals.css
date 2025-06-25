@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -96,3 +96,45 @@
 .typing-dot:nth-child(1) { animation: typing 1.4s infinite; }
 .typing-dot:nth-child(2) { animation: typing 1.4s infinite 0.2s; }
 .typing-dot:nth-child(3) { animation: typing 1.4s infinite 0.4s; }
+
+/* User Profile Hover Animation */
+@keyframes profile-glow {
+  0%, 100% { box-shadow: 0 0 10px rgba(59, 130, 246, 0.3); }
+  50% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.6), 0 0 30px rgba(139, 92, 246, 0.4); }
+}
+
+.profile-hover:hover {
+  animation: profile-glow 2s ease-in-out infinite;
+}
+
+/* Responsive Text Scaling */
+@media (max-width: 640px) {
+  .welcome-text {
+    font-size: 1.5rem;
+    line-height: 2rem;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 1024px) {
+  .welcome-text {
+    font-size: 2rem;
+    line-height: 2.5rem;
+  }
+}
+
+/* Profile Container Responsive */
+@media (max-width: 640px) {
+  .profile-container {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .profile-container > * {
+    width: 100%;
+    margin-bottom: 0.75rem;
+  }
+  
+  .profile-container > *:last-child {
+    margin-bottom: 0;
+  }
+}

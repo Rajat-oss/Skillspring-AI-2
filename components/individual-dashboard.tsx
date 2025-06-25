@@ -47,6 +47,7 @@ import { SmartSearch } from "@/components/smart-search"
 import { ResumeUpload } from "@/components/resume-upload"
 import { CertificateTracker } from "@/components/certificate-tracker"
 import { AppliedApplicationsTracker } from "@/components/applied-applications-tracker"
+import { UserProfileDisplay } from "@/components/user-profile-display"
 import { useToast } from "@/hooks/use-toast"
 
 interface LearningPath {
@@ -150,14 +151,18 @@ export function IndividualDashboard() {
     <div className="min-h-screen gradient-bg">
       <div className="container mx-auto px-2 sm:px-4 lg:px-6 py-4 sm:py-8">
         {/* Enhanced Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 space-y-4 sm:space-y-0">
-          <div className="w-full sm:w-auto">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-6 sm:mb-8 space-y-4 lg:space-y-0">
+          <div className="w-full lg:w-auto">
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-green-400 to-blue-500 bg-clip-text text-transparent">
-              Welcome back, {user?.email?.split('@')[0]}! 🚀
+              Welcome, {localStorage.getItem('user_username') || user?.email?.split('@')[0] || 'User'}! 🚀
             </h1>
             <p className="text-gray-400 mt-2 text-sm sm:text-base">Continue your learning journey with SkillSpring AI</p>
           </div>
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-4 w-full sm:w-auto">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-3 sm:space-y-0 sm:space-x-4 w-full lg:w-auto">
+            <UserProfileDisplay 
+              size="md" 
+              className="w-full sm:w-auto min-w-[200px]" 
+            />
             <Button variant="outline" onClick={logout} className="w-full sm:w-auto">
               <LogOut className="w-4 h-4 mr-2" />
               Logout

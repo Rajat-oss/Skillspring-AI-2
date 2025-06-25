@@ -17,6 +17,7 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false)
   const [step, setStep] = useState<'signup' | 'otp-verification' | 'complete'>('signup')
   const [email, setEmail] = useState("")
+  const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [otp, setOtp] = useState("")
@@ -58,6 +59,10 @@ export default function SignupPage() {
     return re.test(email)
   }
 
+  const validateUsername = (username: string) => {
+    return username.length >= 2 && /^[a-zA-Z0-9_]+$/.test(username)
+  }
+
   const validatePassword = (password: string) => {
     return password.length >= 6
   }
@@ -66,6 +71,10 @@ export default function SignupPage() {
     setError(null)
     if (!validateEmail(email)) {
       setError("Please enter a valid email address.")
+      return
+    }
+    if (!validateUsername(username)) {
+      setError("Username must be at least 2 characters and contain only letters, numbers, and underscores.")
       return
     }
     if (!validatePassword(password)) {
@@ -139,6 +148,7 @@ export default function SignupPage() {
       
       // Store user data
       localStorage.setItem('user_email', email)
+      localStorage.setItem('user_username', username)
       localStorage.setItem('gmail_verified', email)
       localStorage.setItem('gmail_verified_at', new Date().toISOString())
       
@@ -314,6 +324,17 @@ export default function SignupPage() {
                 placeholder="you@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                disabled={loading}
+              />
+            </div>
+            <div>
+              <Label htmlFor="username">Username</Label>
+              <Input
+                id="username"
+                type="text"
+                placeholder="Your display name"
+                value={username}
+                onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9_]/g, ''))}
                 disabled={loading}
               />
             </div>
